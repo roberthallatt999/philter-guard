@@ -141,15 +141,33 @@ for n in "${names[@]}"; do
 done
 
 # Report policies on the server that no longer have a set (never deleted automatically).
-existing=$(curl -sk "$api" -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY" \
-  | jq -r 'if type == "array" then .[] | (if type == "object" then .name else . end) else empty end' 2>/dev/null || true)
+# The listing is an object that nests the names array (e.g. {policies: {policies: [...]}}),
+# items being strings or {name}; look for the first array up to 4 levels down. Philter's
+# built-in "default" is not ours and is left out.
+parse_names='
+  def firstarr($d): if type == "array" then .
+    elif $d >= 4 or type != "object" then null
+    else ([.[] | firstarr($d + 1)] | map(select(. != null)) | first) end;
+  (firstarr(0)) as $a
+  | if $a == null then error("no list of policies found") else $a[] end
+  | (if type == "object" then .name else . end) | strings | select(. != "default")'
 stale=()
-while IFS= read -r n; do
-  [[ -z "$n" ]] && continue
-  keep=0; for k in "${names[@]}"; do [[ "$n" == "$k" ]] && keep=1; done
-  [[ $keep -eq 0 ]] && stale+=("$n")
-done <<<"$existing"
-[[ ${#stale[@]} -gt 0 ]] && echo "Stale (not deleted): ${stale[*]}"
+if listing=$(curl -sk -f "$api" -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY") \
+   && existing=$(jq -r "$parse_names" <<<"$listing"); then
+  while IFS= read -r n; do
+    [[ -z "$n" ]] && continue
+    keep=0; for k in "${names[@]}"; do [[ "$n" == "$k" ]] && keep=1; done
+    [[ $keep -eq 0 ]] && stale+=("$n")
+  done <<<"$existing"
+  selectable=(); other=()
+  for n in ${stale[@]+"${stale[@]}"}; do
+    if [[ "$n" == set-* ]]; then selectable+=("$n"); else other+=("$n"); fi
+  done
+  [[ ${#selectable[@]} -gt 0 ]] && echo "Stale (not deleted, still selectable by .philter): ${selectable[*]}"
+  [[ ${#other[@]} -gt 0 ]] && echo "Stale (not deleted): ${other[*]}"
+else
+  echo "Warning: could not fetch or read the policy list from Philter, so stale policies were not checked." >&2
+fi
 
 echo "Uploaded: ${uploaded[*]:-none}"
 if [[ ${#failed[@]} -gt 0 ]]; then

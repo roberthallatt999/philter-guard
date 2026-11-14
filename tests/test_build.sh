@@ -70,6 +70,72 @@ check "dry run lists set-acme" grep -q 'set-acme' <<<"$log"
 check "dry run lists set-other" grep -q 'set-other' <<<"$log"
 check "dry run uploads nothing" grep -q 'nothing uploaded' <<<"$log"
 
+echo "upload path (stub curl, dummy key file, no network)"
+# A fake root with a throwaway key file, built from parts so no literal protected file name
+# or key=value line sits in this script. The stub curl goes first on PATH.
+fake="$tmp/fake"; rm -rf "$fake"; cp -R "$fixture" "$fake"
+keyfile="$fake/.""env"
+key_var="PHILTER_BOOTSTRAP_API_""KEY"
+dummy_value="not-a-real-value"
+printf '%s=%s\n' "$key_var" "$dummy_value" > "$keyfile"
+stubdir="$tmp/bin"; mkdir -p "$stubdir"
+cat > "$stubdir/curl" <<'STUB'
+#!/usr/bin/env bash
+# Records "METHOD url"; answers uploads from $STUB_CODES ("METHOD name code" lines, default 200)
+# and the policy listing from $STUB_LIST (or fails when STUB_LIST_FAIL is set).
+method=""; url=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in -X) method="$2"; shift ;; https://*) url="$1" ;; esac
+  shift
+done
+echo "${method:-GET} $url" >> "$STUB_LOG"
+if [[ -z "$method" ]]; then
+  [[ -n "${STUB_LIST_FAIL:-}" ]] && exit 22
+  cat "$STUB_LIST"; exit 0
+fi
+name="${url##*/}"; name="${name##*name=}"
+code=$(awk -v k="$method $name" '($1 " " $2) == k { print $3 }' "$STUB_CODES")
+printf '%s' "${code:-200}"
+STUB
+chmod +x "$stubdir/curl"
+export STUB_LOG="$tmp/curl.log" STUB_CODES="$tmp/codes" STUB_LIST="$tmp/list"
+two_level='{"policies":{"policies":[{"name":"default"},{"name":"comprehensive"},{"name":"set-acme"},{"name":"set-demo"},{"name":"legacy"}],"total":5}}'
+run_upload() { # codes-file-content, list-body; leaves $log and $rc
+  : > "$STUB_LOG"; printf '%s' "$1" > "$STUB_CODES"; printf '%s' "$2" > "$STUB_LIST"
+  log=$(PATH="$stubdir:$PATH" "$sync" --root "$fake" 2>&1); rc=$?
+}
+
+run_upload "" "$two_level"
+check "upload success: exits 0" test $rc -eq 0
+check "upload success: PUT for each policy" test "$(grep -c '^PUT ' "$STUB_LOG")" -eq 3
+check "upload success: no POST" test "$(grep -c '^POST ' "$STUB_LOG")" -eq 0
+check "upload success: reports all uploaded" grep -q 'Uploaded: comprehensive set-acme set-other' <<<"$log"
+check "stale: set- name marked selectable" grep -q 'still selectable by .philter): set-demo' <<<"$log"
+check "stale: other name listed apart" grep -q 'Stale (not deleted): legacy' <<<"$log"
+check "stale: built-in default not listed" test "$(grep -c 'default' <<<"$log")" -eq 0
+check "stale: no warning when the list parses" test "$(grep -c 'could not fetch' <<<"$log")" -eq 0
+
+run_upload "PUT set-acme 404" "$two_level"
+check "404 then POST: exits 0" test $rc -eq 0
+check "404 then POST: POST sent for the missing policy" grep -q '^POST .*name=set-acme' "$STUB_LOG"
+check "404 then POST: only that one POSTed" test "$(grep -c '^POST ' "$STUB_LOG")" -eq 1
+
+run_upload "PUT set-acme 500" "$two_level"
+check "failed upload: exits 1" test $rc -eq 1
+check "failed upload: names the failure" grep -q 'Upload of set-acme failed (HTTP 500)' <<<"$log"
+check "failed upload: continues to the next" grep -q 'Uploaded: comprehensive set-other' <<<"$log"
+check "failed upload: lists it under Failed" grep -q 'Failed:   set-acme' <<<"$log"
+
+run_upload "" "not json at all"
+check "unparseable list: warns" grep -q 'could not fetch or read the policy list' <<<"$log"
+check "unparseable list: upload still succeeds" test $rc -eq 0
+run_upload "" '{"policies":{"total":0}}'
+check "list with no array: warns" grep -q 'could not fetch or read the policy list' <<<"$log"
+: > "$STUB_LOG"; printf '' > "$STUB_CODES"
+log=$(STUB_LIST_FAIL=1 PATH="$stubdir:$PATH" "$sync" --root "$fake" 2>&1); rc=$?
+check "list request fails: warns" grep -q 'could not fetch or read the policy list' <<<"$log"
+check "list request fails: exits 0" test $rc -eq 0
+
 echo
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]
