@@ -95,9 +95,15 @@
       },
       {
         "classification": "passport-number",
-        "pattern": "(?i)\\b(?:passport|passeport)\\b\\s*(?:no\\.?|number|num|#)?\\s*[:#]?\\s*([A-Z0-9]{6,9})\\b",
+        "pattern": "(?i)\\b(?:passport|passeport|travel\\s+doc(?:ument)?|document\\s+de\\s+voyage)\\b[^\\n.;]{0,25}?\\b([A-Z]{0,2}[- ]?\\d{6,9})\\b",
         "groupNumber": 1,
         "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "passport-number",
+        "pattern": "\\b[A-Z]\\d{8}\\b",
+        "caseSensitive": true,
         "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
       },
       {
