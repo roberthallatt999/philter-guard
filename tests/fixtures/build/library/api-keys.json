@@ -1,0 +1,1 @@
+{ "_about": "Fixture credentials piece.", "identifiers": [ { "classification": "secret-fixture", "pattern": "SK-[A-Z0-9]{8}" } ] }

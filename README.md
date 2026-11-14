@@ -10,8 +10,9 @@ It's built for coding work where programs sometimes print customer data: logs, c
 |---|---|
 | `docker-compose.yaml` | Philter 4 and the philter-mcp server, bound to localhost only |
 | `policies/comprehensive.json` | The base redaction policy: built-in filters, Canadian and US identifiers, and ignore rules for paths, versions and log timestamps |
-| `projects/*.json` | Extra patterns and word lists for each project, merged into the policy |
-| `sync-policy.sh` | Builds the policy from the base and project files and uploads it. Philter uses it from the next request, with no restart |
+| `library/*.json` | Reusable pieces: regex patterns and word lists. `api-keys.json` is merged into every policy |
+| `sets/*.json` | One file per client, listing which library pieces its policy includes |
+| `sync-policy.sh` | Builds one policy per set (plus `comprehensive`) from the base and library pieces, and uploads them. Philter uses them from the next request, with no restart |
 | `setup.sh` | One-time setup for a new computer |
 | `plugins/philter-scrub/` | The Claude Code mod that sends prompts and tool output through Philter |
 
@@ -87,11 +88,15 @@ Run `/scrub` to check it's working.
 
 ## Adding rules for a new project
 
-1. Copy `projects/_example.json.disabled` to `projects/<project>.json`.
-2. Add regex `identifiers` (with a `classification`) and word-list `dictionaries`. Remember that backslashes have to be doubled in JSON.
-3. Run `./sync-policy.sh --dry-run` to check what will be uploaded, then `./sync-policy.sh` to upload it.
+Every policy is the base, `library/api-keys.json`, and the pieces a set includes. Every client gets the base and the API-key rules. A set can't opt out of them.
 
-Commit the change so every computer gets it. On another computer, run `git pull && ./sync-policy.sh`.
+1. Get the client's data schema (field names, ID formats, example values).
+2. Turn it into rules in a piece: copy `library/_example.json.disabled` to `library/<piece>.json`. Add regex `identifiers` (with a `classification`) and word-list `dictionaries`. Remember that backslashes have to be doubled in JSON.
+3. Add tests for the new patterns in `tests/test_patterns.py`, with made-up values only.
+4. Create the set: copy `sets/_example.json.disabled` to `sets/<client>.json` and list the piece names in `include`. Set names use lowercase letters, digits and hyphens. `comprehensive` is reserved.
+5. Run `./sync-policy.sh --dry-run` to validate and see the summary, then `./sync-policy.sh` to upload. A policy on the server with no matching set is reported as `Stale (not deleted)`.
+
+Run `bash tests/test_build.sh` to test the build itself. Commit the change so every computer gets it. On another computer, run `git pull && ./sync-policy.sh`.
 
 ## Limits
 

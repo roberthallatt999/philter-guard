@@ -1,0 +1,1 @@
+{ "_about": "Piece a.", "_tests": [ { "text": "A-1" } ], "identifiers": [ { "classification": "a-fixture", "pattern": "A-\\d+" } ], "dictionaries": [ { "classification": "a-words", "terms": ["alpha"] } ] }

@@ -1,0 +1,31 @@
+{
+  "_about": "Template. Copy to library/<piece>.json (the .json ending makes it active), then list the piece name in a set under sets/.",
+  "identifiers": [
+    {
+      "classification": "example-client-id",
+      "pattern": "\\bCLT-\\d{6}\\b",
+      "caseSensitive": false,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-%t}}}"
+        }
+      ]
+    }
+  ],
+  "dictionaries": [
+    {
+      "classification": "example-client-names",
+      "terms": [
+        "Acme Clinic",
+        "Jane Example"
+      ],
+      "customFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-%t}}}"
+        }
+      ]
+    }
+  ]
+}

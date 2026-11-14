@@ -1,43 +1,155 @@
 #!/usr/bin/env bash
-# Builds the live "comprehensive" Philter policy from:
+# Builds one Philter policy per client set, then uploads them. Inputs:
 #   policies/comprehensive.json   the base (all built-in filters + Canadian patterns)
-#   projects/*.json               one file per project, each adding its own
-#                                 "identifiers" (regex) and/or "dictionaries" (word lists)
-# then uploads it. Philter uses the new version on the next request; no restart needed.
+#   library/*.json                reusable pieces, each adding "identifiers" (regex)
+#                                 and/or "dictionaries" (word lists)
+#   sets/<name>.json              one per client: { "include": ["piece", ...] }
+# Output: policy "comprehensive" (base + library/api-keys.json) and one policy per set
+# (base + library/api-keys.json + the set's pieces). api-keys is in every policy; no set
+# can opt out. Philter uses the new versions on the next request; no restart needed.
 #
-#   ./sync-policy.sh            build, show a summary, upload
-#   ./sync-policy.sh --dry-run  build and show the summary only
+#   ./sync-policy.sh                  validate, build, show a summary, upload
+#   ./sync-policy.sh --dry-run        validate, build and show the summary only
+#   ./sync-policy.sh --root DIR       read policies/, library/ and sets/ under DIR
+#   ./sync-policy.sh --out DIR        write DIR/<name>.json and upload nothing
+# Any validation error exits 1 with nothing written or uploaded.
 set -euo pipefail
-cd "$(dirname "$0")"
+shopt -s nullglob
 
-built=$(mktemp)
-trap 'rm -f "$built"' EXIT
+root="$(cd "$(dirname "$0")" && pwd)"
+dry_run=0
+out=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) dry_run=1 ;;
+    --root) root="${2:?--root needs a folder}"; shift ;;
+    --out)  out="${2:?--out needs a folder}"; shift ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
 
-# Merge: project identifiers/dictionaries are appended to the base arrays.
-jq -s '
-  .[0] as $base | .[1:] as $projects
-  | $base
-  | .identifiers.identifiers  += ([$projects[] | .identifiers  // [] | .[]])
-  | .identifiers.dictionaries += ([$projects[] | .dictionaries // [] | .[]])
-' policies/comprehensive.json projects/*.json 2>/dev/null > "$built" \
-  || jq '.' policies/comprehensive.json > "$built"   # no project files yet
+base="$root/policies/comprehensive.json"
+always="api-keys"   # merged into every policy
+errors=()
+err() { errors+=("$1"); }
 
-echo "Projects: $(ls projects/*.json 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.json$//' | paste -sd, - || true)"
-echo "Built-in filters: $(jq '[.identifiers | keys[] | select(. != "identifiers" and . != "dictionaries")] | length' "$built")"
-echo "Custom patterns:  $(jq '.identifiers.identifiers | length' "$built")"
-echo "Word lists:       $(jq '.identifiers.dictionaries | length' "$built")"
+# ---- Validate everything first ----
+[[ -f "$base" ]] && { jq -e . "$base" >/dev/null 2>&1 || err "policies/comprehensive.json is not valid JSON"; } \
+  || err "policies/comprehensive.json not found"
+[[ -f "$root/library/$always.json" ]] || err "library/$always.json not found"
 
-[[ "${1:-}" == "--dry-run" ]] && { echo "(dry run, nothing uploaded)"; exit 0; }
+pieces=()
+for f in "$root"/library/*.json; do
+  name=$(basename "$f" .json)
+  jq -e 'type == "object"' "$f" >/dev/null 2>&1 || { err "library/$name.json is not a valid JSON object"; continue; }
+  pieces+=("$name")
+done
 
-set -a; . ./.env; set +a
-send() { # method, url
+sets=()
+for f in "$root"/sets/*.json; do
+  name=$(basename "$f" .json)
+  if [[ ! "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+    err "sets/$name.json: set names use lowercase letters, digits and hyphens"; continue
+  fi
+  if [[ "$name" == "comprehensive" ]]; then
+    err "sets/comprehensive.json: 'comprehensive' is reserved for the base policy"; continue
+  fi
+  if ! jq -e '(.include // []) | type == "array" and all(type == "string")' "$f" >/dev/null 2>&1; then
+    err "sets/$name.json: not valid JSON, or \"include\" is not a list of piece names"; continue
+  fi
+  while IFS= read -r piece; do
+    [[ -f "$root/library/$piece.json" ]] || err "sets/$name.json: includes '$piece' but library/$piece.json does not exist"
+  done < <(jq -r '(.include // [])[]' "$f")
+  sets+=("$name")
+done
+
+if [[ ${#errors[@]} -gt 0 ]]; then
+  printf 'Error: %s\n' "${errors[@]}" >&2
+  exit 1
+fi
+
+# ---- Build every policy into a temp dir ----
+built=$(mktemp -d)
+trap 'rm -rf "$built"' EXIT
+
+# Merge: piece identifiers/dictionaries are appended to the base arrays. Top-level keys
+# starting with "_" (_about, _tests) are notes for people and never reach Philter.
+merge() { # output file, piece names...
+  local dest="$1"; shift
+  local files=() p
+  for p in "$@"; do files+=("$root/library/$p.json"); done
+  jq -s '
+    def clean: with_entries(select(.key | startswith("_") | not));
+    (.[0] | clean) as $base | [.[1:][] | clean] as $pieces
+    | $base
+    | .identifiers.identifiers  += ([$pieces[] | .identifiers  // [] | .[]])
+    | .identifiers.dictionaries += ([$pieces[] | .dictionaries // [] | .[]])
+  ' "$base" "${files[@]}" > "$dest"
+}
+
+merge "$built/comprehensive.json" "$always"
+for s in ${sets[@]+"${sets[@]}"}; do
+  list=()
+  while IFS= read -r piece; do
+    [[ "$piece" == "$always" ]] || list+=("$piece")
+  done < <(jq -r '(.include // []) | reduce .[] as $x ([]; if index($x) then . else . + [$x] end) | .[]' "$root/sets/$s.json")
+  merge "$built/$s.json" "$always" ${list[@]+"${list[@]}"}
+done
+
+names=(comprehensive ${sets[@]+"${sets[@]}"})
+echo "Library pieces: ${pieces[*]:-none}"
+for n in "${names[@]}"; do
+  printf '%-16s %s built-in filters, %s custom patterns, %s word lists\n' "$n:" \
+    "$(jq '[.identifiers | keys[] | select(. != "identifiers" and . != "dictionaries")] | length' "$built/$n.json")" \
+    "$(jq '.identifiers.identifiers | length' "$built/$n.json")" \
+    "$(jq '.identifiers.dictionaries | length' "$built/$n.json")"
+done
+
+if [[ -n "$out" ]]; then
+  mkdir -p "$out"
+  for n in "${names[@]}"; do cp "$built/$n.json" "$out/$n.json"; done
+  echo "(wrote ${#names[@]} policies to $out, nothing uploaded)"
+  exit 0
+fi
+[[ $dry_run -eq 1 ]] && { echo "(dry run, nothing uploaded)"; exit 0; }
+
+# ---- Upload ----
+set -a; . "$root/.env"; set +a
+api="https://localhost:8080/api/policies"
+send() { # method, url, file
   curl -sk -o /dev/stderr -w '%{http_code}' -X "$1" "$2" \
     -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY" \
-    -H "Content-Type: application/json" --data-binary @"$built"
+    -H "Content-Type: application/json" --data-binary @"$3"
 }
-code=$(send PUT "https://localhost:8080/api/policies/comprehensive")
-if [[ "$code" == "404" ]]; then   # first run on this computer: create it
-  code=$(send POST "https://localhost:8080/api/policies?name=comprehensive")
+uploaded=(); failed=()
+for n in "${names[@]}"; do
+  code=$(send PUT "$api/$n" "$built/$n.json" || true)
+  if [[ "$code" == "404" ]]; then   # first run on this computer: create it
+    code=$(send POST "$api?name=$n" "$built/$n.json" || true)
+  fi
+  echo
+  if [[ "$code" == "200" || "$code" == "201" ]]; then
+    uploaded+=("$n")
+  else
+    echo "Upload of $n failed (HTTP $code)." >&2
+    failed+=("$n")
+  fi
+done
+
+# Report policies on the server that no longer have a set (never deleted automatically).
+existing=$(curl -sk "$api" -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY" \
+  | jq -r 'if type == "array" then .[] | (if type == "object" then .name else . end) else empty end' 2>/dev/null || true)
+stale=()
+while IFS= read -r n; do
+  [[ -z "$n" ]] && continue
+  keep=0; for k in "${names[@]}"; do [[ "$n" == "$k" ]] && keep=1; done
+  [[ $keep -eq 0 ]] && stale+=("$n")
+done <<<"$existing"
+[[ ${#stale[@]} -gt 0 ]] && echo "Stale (not deleted): ${stale[*]}"
+
+echo "Uploaded: ${uploaded[*]:-none}"
+if [[ ${#failed[@]} -gt 0 ]]; then
+  echo "Failed:   ${failed[*]}"
+  exit 1
 fi
-echo
-[[ "$code" == "200" || "$code" == "201" ]] && echo "Uploaded (HTTP $code)." || { echo "Upload failed (HTTP $code)."; exit 1; }

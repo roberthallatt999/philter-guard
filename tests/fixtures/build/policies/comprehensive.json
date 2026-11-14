@@ -1,0 +1,1 @@
+{ "name": "comprehensive", "identifiers": { "emailAddress": { "emailAddressFilterStrategies": [] }, "identifiers": [ { "classification": "base-fixture", "pattern": "BASE-\\d+" } ], "dictionaries": [] } }
