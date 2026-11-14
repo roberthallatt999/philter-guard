@@ -23,7 +23,6 @@
     "itin":                 { "itinFilterStrategies":                 [{ "strategy": "REDACT" }] },
     "ein":                  { "einFilterStrategies":                  [{ "strategy": "REDACT" }] },
     "driversLicense":       { "driversLicenseFilterStrategies":       [{ "strategy": "REDACT" }] },
-    "passportNumber":       { "passportNumberFilterStrategies":       [{ "strategy": "REDACT" }] },
     "emailAddress":         { "emailAddressFilterStrategies":         [{ "strategy": "REDACT" }] },
     "phoneNumber":          { "phoneNumberFilterStrategies":          [{ "strategy": "REDACT" }] },
     "phoneNumberExtension": { "phoneNumberExtensionFilterStrategies": [{ "strategy": "REDACT" }] },
@@ -92,6 +91,13 @@
         "classification": "passport-number",
         "pattern": "\\b[A-Z]{2}\\d{6}\\b",
         "caseSensitive": true,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "passport-number",
+        "pattern": "(?i)\\b(?:passport|passeport)\\b\\s*(?:no\\.?|number|num|#)?\\s*[:#]?\\s*([A-Z0-9]{6,9})\\b",
+        "groupNumber": 1,
+        "caseSensitive": false,
         "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
       },
       {
