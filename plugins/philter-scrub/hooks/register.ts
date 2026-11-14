@@ -30,6 +30,7 @@ type Scrubbed = { text: string; count: number }
 // Philter policy set. Chosen once per session; the base policy is used when
 // there is no file or the set can't be used.
 const SET_NAME = /^[a-z0-9][a-z0-9-]*$/
+const SET_PREFIX = 'set-'
 let policy: string | undefined
 let policyNote = ''
 
@@ -50,7 +51,9 @@ export async function findPhilterFile($: EngineInterface, cwd: string): Promise<
     const base = dir === '/' ? '' : dir
     if (await $.fs.exists(base + '/.philter')) return base + '/.philter'
     if (dir === '/' || (await $.fs.exists(base + '/.git'))) return null
-    dir = dir.replace(/\/[^/]*$/, '') || '/'
+    const up = dir.replace(/\/[^/]*$/, '') || '/'
+    if (up === dir) return null // relative or odd path with nothing left to strip
+    dir = up
   }
 }
 
@@ -91,12 +94,16 @@ async function resolvePolicy($: EngineInterface, cwd: string) {
     return
   }
   if (name === 'comprehensive') return // the base itself: no argument needed
+  // A repo can only select a policy that sync-policy.sh built, which always holds the
+  // base rules: those are uploaded as set-<name>. The bare name is never sent.
+  const server = SET_PREFIX + name
   const names = await listPolicies($)
-  if (names && !names.includes(name)) {
+  if (names && !names.includes(server)) {
     policyNote = `⚠ policy "${name}" not found, using base`
     return
   }
-  policy = name
+  // If the list failed, still send it: an unknown name makes Philter error, which fails closed.
+  policy = server
 }
 
 async function scrub($: EngineInterface, text: string): Promise<Scrubbed> {
@@ -112,6 +119,7 @@ function showCount($: EngineInterface, added: number) {
   total += added
   $.ui.status(
     (isOn ? `🛡 Philter: ${total} redacted${allowImages ? ' · images ALLOWED' : ''}` : '🛡 Philter: OFF') +
+      (policy ? ` · set ${policy.slice(SET_PREFIX.length)}` : '') +
       (policyNote ? ` · ${policyNote}` : ''),
   )
 }
@@ -140,7 +148,7 @@ export const register: Register = on => {
       : 'Images and PDFs are BLOCKED ("/scrub images on" to allow).'
     return {
       text: isOn
-        ? `Philter scrubbing is ON. ${total} items redacted this session. ${images} Policy: ${policy ?? 'base (comprehensive)'}.${policyNote ? ` ${policyNote}.` : ''}`
+        ? `Philter scrubbing is ON. ${total} items redacted this session. ${images} Policy: ${policy ? `${policy.slice(SET_PREFIX.length)} (${policy})` : 'base (comprehensive)'}.${policyNote ? ` ${policyNote}.` : ''}`
         : 'Philter scrubbing is OFF. Prompts, tool results and images go to the model unredacted.',
     }
   })

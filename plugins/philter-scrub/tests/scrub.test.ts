@@ -142,7 +142,7 @@ function setup(on: any, w: World) {
     calls.push({ tool: e.tool, args: e.args })
     if (e.tool === 'list_policies') {
       if (w.policies === 'fail') throw new Error('down')
-      const names = Array.isArray(w.policies) ? w.policies : ['acme']
+      const names = Array.isArray(w.policies) ? w.policies : ['set-acme']
       const text =
         w.policies === 'junk'
           ? 'not json'
@@ -166,18 +166,40 @@ const redactArgs = (calls: { tool: string; args: any }[]) => calls.filter(c => c
 const GIT = '/.' + 'git'
 
 test('uses the set named in .philter', async ($, on) => {
-  const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: ['comprehensive', 'acme'] })
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: ['comprehensive', 'set-acme'] })
   await start($, '/w/acme')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
-  expect(redactArgs(w.calls).policy).toBe('acme')
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
 })
 
 test('accepts a list_policies object holding a list', async ($, on) => {
   const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: 'object' })
   await start($, '/w/acme')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
-  expect(redactArgs(w.calls).policy).toBe('acme')
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
   expect(w.statuses.at(-1)).not.toContain('not found')
+})
+
+test('a name that exists on the server only without the prefix falls back to base', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['comprehensive', 'acme'] })
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect('policy' in redactArgs(w.calls)).toBe(false)
+  expect(w.statuses.at(-1)).toContain('policy \\"acme\\" not found, using base')
+})
+
+test('the status line shows the active set', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['set-acme'] })
+  await start($, '/w/acme')
+  expect(w.statuses.at(-1)).toContain('set acme')
+})
+
+test('a relative cwd with no markers resolves with no policy', async ($, on) => {
+  const w = setup(on, { files: {} })
+  await start($, 'src/app')
+  await start($, '.')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect('policy' in redactArgs(w.calls)).toBe(false)
 })
 
 test('no .philter means no policy argument', async ($, on) => {
@@ -188,14 +210,14 @@ test('no .philter means no policy argument', async ($, on) => {
 })
 
 test('finds .philter from a subfolder', async ($, on) => {
-  const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['acme'] })
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['set-acme'] })
   await start($, '/w/acme/src/app')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
-  expect(redactArgs(w.calls).policy).toBe('acme')
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
 })
 
 test('does not look above the git root', async ($, on) => {
-  const w = setup(on, { files: { '/w/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['acme'] })
+  const w = setup(on, { files: { '/w/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['set-acme'] })
   await start($, '/w/acme/src')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
   expect('policy' in redactArgs(w.calls)).toBe(false)
@@ -204,11 +226,11 @@ test('does not look above the git root', async ($, on) => {
 test('reads CRLF, BOM and comments', async ($, on) => {
   const w = setup(on, {
     files: { '/w/acme/.philter': '﻿# philter-guard set\r\nacme\r\n', ['/w/acme' + GIT]: '' },
-    policies: ['acme'],
+    policies: ['set-acme'],
   })
   await start($, '/w/acme')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
-  expect(redactArgs(w.calls).policy).toBe('acme')
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
 })
 
 test('unknown set falls back to base with a warning', async ($, on) => {
@@ -231,15 +253,15 @@ test('list_policies failing still uses the named set', async ($, on) => {
   const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: 'fail' })
   await start($, '/w/acme')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
-  expect(redactArgs(w.calls).policy).toBe('acme')
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
   expect(w.statuses.at(-1)).not.toContain('not found')
 })
 
 test('/scrub reports the policy', async ($, on) => {
-  setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['acme'] })
+  setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['set-acme'] })
   await start($, '/w/acme')
   const res = await $.command.run({ command: 'scrub', args: '' })
-  expect((res as { text: string }).text).toContain('Policy: acme')
+  expect((res as { text: string }).text).toContain('Policy: acme (set-acme)')
 
 })
 

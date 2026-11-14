@@ -4,14 +4,14 @@
 #   library/*.json                reusable pieces, each adding "identifiers" (regex)
 #                                 and/or "dictionaries" (word lists)
 #   sets/<name>.json              one per client: { "include": ["piece", ...] }
-# Output: policy "comprehensive" (base + library/api-keys.json) and one policy per set
-# (base + library/api-keys.json + the set's pieces). api-keys is in every policy; no set
+# Output: policy "comprehensive" (base + library/api-keys.json) and one policy "set-<name>"
+# per set file (base + library/api-keys.json + the set's pieces). api-keys is in every policy; no set
 # can opt out. Philter uses the new versions on the next request; no restart needed.
 #
 #   ./sync-policy.sh                  validate, build, show a summary, upload
 #   ./sync-policy.sh --dry-run        validate, build and show the summary only
 #   ./sync-policy.sh --root DIR       read policies/, library/ and sets/ under DIR
-#   ./sync-policy.sh --out DIR        write DIR/<name>.json and upload nothing
+#   ./sync-policy.sh --out DIR        write DIR/comprehensive.json, DIR/set-<name>.json; upload nothing
 # Any validation error exits 1 with nothing written or uploaded.
 set -euo pipefail
 shopt -s nullglob
@@ -94,10 +94,13 @@ for s in ${sets[@]+"${sets[@]}"}; do
   while IFS= read -r piece; do
     [[ "$piece" == "$always" ]] || list+=("$piece")
   done < <(jq -r '(.include // []) | reduce .[] as $x ([]; if index($x) then . else . + [$x] end) | .[]' "$root/sets/$s.json")
-  merge "$built/$s.json" "$always" ${list[@]+"${list[@]}"}
+  merge "$built/set-$s.json" "$always" ${list[@]+"${list[@]}"}
 done
 
-names=(comprehensive ${sets[@]+"${sets[@]}"})
+# Server-side policy names: the base, and each set uploaded as set-<name>. A repo can
+# only select a "set-" policy, and every one of them is built from the base.
+names=(comprehensive)
+for s in ${sets[@]+"${sets[@]}"}; do names+=("set-$s"); done
 echo "Library pieces: ${pieces[*]:-none}"
 for n in "${names[@]}"; do
   printf '%-16s %s built-in filters, %s custom patterns, %s word lists\n' "$n:" \

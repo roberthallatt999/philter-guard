@@ -98,13 +98,18 @@ sets/<set>.json               one per client project
 { "_about": "Acme member portal", "include": ["acme-crm", "stripe"] }
 ```
 
-The set's name is its filename. It becomes the Philter policy name. Names are lowercase letters, digits and
+The set's name is its filename. It is uploaded as the Philter policy `set-<name>` (the base stays `comprehensive`). Names are lowercase letters, digits and
 hyphens. `comprehensive` is reserved for the base.
 
 ### Building and uploading (`sync-policy.sh`)
 
 - **Base policy `comprehensive`** = `policies/comprehensive.json` + `library/api-keys.json`. It's still the
   default (`PHILTER_DEFAULT_POLICY`), so repos without a `.philter` file get it.
+- **Prefix.** A repo's `.philter` is untrusted input: it must not be able to pick a weaker policy, such as
+  one of Philter's built-ins or a hand-made one. So sets are namespaced: the mod only selects `set-<name>`,
+  and a repo can only select a policy that sync built, which always contains the base and the credential
+  rules. `--out` writes `set-<name>.json`. Stale reporting treats only `comprehensive` and the current
+  `set-<name>` policies as current, so old un-prefixed set policies are listed as stale.
 - **One policy per set** = the base (including secrets) + each piece the set includes, in the order listed.
   Pieces are appended to `.identifiers.identifiers` and `.identifiers.dictionaries`, the same way the merge
   works today.
@@ -125,14 +130,16 @@ hyphens. `comprehensive` is reserved for the base.
   found wins.
 - The file holds a set name. Leading and trailing whitespace and `#` comment lines are ignored. Anything that
   isn't a valid set name is treated as "unknown".
-- The mod calls `list_policies` once to check the set exists on the server.
-  - **Found:** every `redact_text` call passes `policy: <set>`.
+- The mod calls `list_policies` once to check that `set-<name>` exists on the server. It never sends the bare
+  name. A name that exists only without the prefix counts as not found. A `.philter` naming `comprehensive`
+  means the base (no `policy` argument).
+  - **Found:** every `redact_text` call passes `policy: set-<name>`, and the status line shows `set <name>`.
   - **No `.philter`:** calls pass no policy, so the server default (`comprehensive`) applies. This is today's
     behavior.
   - **Named but not on the server, or unreadable:** fall back to the base policy and show a warning in the
     status line, e.g. `🛡 Philter: 3 redacted · policy "acme" not found, using base`. The session isn't blocked.
     (Robert approved this fallback.)
-  - **`list_policies` fails:** use the named set anyway. If Philter is down, the scrub calls fail closed as
+  - **`list_policies` fails:** send `set-<name>` anyway (an unknown name makes Philter error, so scrubbing fails closed). If Philter is down, the scrub calls fail closed as
     they already do.
 - The policy is chosen once per session. A mid-session directory change doesn't switch it.
 - `/scrub` (status) also reports which policy is in use.

@@ -26,23 +26,24 @@ out="$tmp/out"; mkdir "$out"
 "$sync" --root "$fixture" --out "$out" >"$tmp/log" 2>&1; rc=$?
 check "exits 0" test $rc -eq 0
 check "comprehensive.json written" test -f "$out/comprehensive.json"
-check "acme.json written" test -f "$out/acme.json"
-check "other.json written" test -f "$out/other.json"
+check "set-acme.json written" test -f "$out/set-acme.json"
+check "set-other.json written" test -f "$out/set-other.json"
+check "no un-prefixed set file written" test ! -e "$out/acme.json" -a ! -e "$out/other.json"
 check "nothing written for the disabled template" test "$(ls "$out" | wc -l | tr -d ' ')" -eq 3
 check "comprehensive has secret-fixture" test "$(count "$out/comprehensive.json" secret-fixture)" -eq 1
 check "comprehensive has base-fixture" test "$(count "$out/comprehensive.json" base-fixture)" -eq 1
 check "comprehensive has nothing from a" test "$(count "$out/comprehensive.json" a-fixture)" -eq 0
-check "acme has a once" test "$(count "$out/acme.json" a-fixture)" -eq 1
-check "acme has a's word list once" test "$(count "$out/acme.json" a-words)" -eq 1
-check "acme has b once" test "$(count "$out/acme.json" b-fixture)" -eq 1
-check "acme has secret-fixture" test "$(count "$out/acme.json" secret-fixture)" -eq 1
-check "acme has base-fixture" test "$(count "$out/acme.json" base-fixture)" -eq 1
-check "other has secret-fixture" test "$(count "$out/other.json" secret-fixture)" -eq 1
-check "other has b" test "$(count "$out/other.json" b-fixture)" -eq 1
-check "other has nothing from a" test "$(count "$out/other.json" a-fixture)" -eq 0
+check "acme has a once" test "$(count "$out/set-acme.json" a-fixture)" -eq 1
+check "acme has a's word list once" test "$(count "$out/set-acme.json" a-words)" -eq 1
+check "acme has b once" test "$(count "$out/set-acme.json" b-fixture)" -eq 1
+check "acme has secret-fixture" test "$(count "$out/set-acme.json" secret-fixture)" -eq 1
+check "acme has base-fixture" test "$(count "$out/set-acme.json" base-fixture)" -eq 1
+check "other has secret-fixture" test "$(count "$out/set-other.json" secret-fixture)" -eq 1
+check "other has b" test "$(count "$out/set-other.json" b-fixture)" -eq 1
+check "other has nothing from a" test "$(count "$out/set-other.json" a-fixture)" -eq 0
 check "no built policy contains _tests" test "$(grep -l '_tests' "$out"/*.json | wc -l | tr -d ' ')" -eq 0
 check "no built policy has _about" test "$(grep -l '_about' "$out"/*.json | wc -l | tr -d ' ')" -eq 0
-check "built policies are valid JSON" jq -e . "$out/comprehensive.json" "$out/acme.json" "$out/other.json"
+check "built policies are valid JSON" jq -e . "$out/comprehensive.json" "$out/set-acme.json" "$out/set-other.json"
 
 # expect_fail <description> <fixture-mutation shell snippet run in $copy> [message-regex]
 expect_fail() {
@@ -65,8 +66,8 @@ echo "dry run"
 log=$("$sync" --dry-run --root "$fixture" 2>&1); rc=$?
 check "dry run exits 0" test $rc -eq 0
 check "dry run lists comprehensive" grep -q 'comprehensive' <<<"$log"
-check "dry run lists acme" grep -q 'acme' <<<"$log"
-check "dry run lists other" grep -q 'other' <<<"$log"
+check "dry run lists set-acme" grep -q 'set-acme' <<<"$log"
+check "dry run lists set-other" grep -q 'set-other' <<<"$log"
 check "dry run uploads nothing" grep -q 'nothing uploaded' <<<"$log"
 
 echo
