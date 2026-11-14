@@ -26,8 +26,81 @@ const NON_TEXT = /"type"\s*:\s*"(?:image|pdf|document|audio)"/
 
 type Scrubbed = { text: string; count: number }
 
+// Per-project policy: the first non-comment line of a `.philter` file names a
+// Philter policy set. Chosen once per session; the base policy is used when
+// there is no file or the set can't be used.
+const SET_NAME = /^[a-z0-9][a-z0-9-]*$/
+let policy: string | undefined
+let policyNote = ''
+
+export function parseSetName(text: string): string | null {
+  for (const raw of text.replace(/^﻿/, '').split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    return SET_NAME.test(line) ? line : null
+  }
+  return null
+}
+
+// Looks for <dir>/.philter from cwd upward, stopping after the first dir that
+// holds a git marker, or at the root.
+export async function findPhilterFile($: EngineInterface, cwd: string): Promise<string | null> {
+  let dir = cwd.length > 1 ? cwd.replace(/\/+$/, '') || '/' : cwd
+  for (;;) {
+    const base = dir === '/' ? '' : dir
+    if (await $.fs.exists(base + '/.philter')) return base + '/.philter'
+    if (dir === '/' || (await $.fs.exists(base + '/.git'))) return null
+    dir = dir.replace(/\/[^/]*$/, '') || '/'
+  }
+}
+
+// null when the list can't be fetched or understood.
+async function listPolicies($: EngineInterface): Promise<string[] | null> {
+  try {
+    const res = await $.mcp.call(SERVER, 'list_policies', {})
+    const block = res.content.find((b: { type: string }) => b.type === 'text') as { text?: string } | undefined
+    if (res.isError || !block?.text) return null
+    const body = JSON.parse(block.text) as unknown
+    const arr = Array.isArray(body)
+      ? body
+      : body && typeof body === 'object'
+        ? Object.values(body as object).find(Array.isArray)
+        : undefined
+    if (!arr) return null
+    return arr
+      .map((x: unknown) => (typeof x === 'string' ? x : (x as { name?: unknown } | null)?.name))
+      .filter((x: unknown): x is string => typeof x === 'string')
+  } catch {
+    return null
+  }
+}
+
+async function resolvePolicy($: EngineInterface, cwd: string) {
+  policy = undefined
+  policyNote = ''
+  let name: string | null
+  try {
+    const file = await findPhilterFile($, cwd)
+    if (!file) return
+    name = parseSetName(await $.fs.read(file))
+  } catch {
+    name = null
+  }
+  if (!name) {
+    policyNote = '⚠ .philter unreadable or invalid, using base'
+    return
+  }
+  if (name === 'comprehensive') return // the base itself: no argument needed
+  const names = await listPolicies($)
+  if (names && !names.includes(name)) {
+    policyNote = `⚠ policy "${name}" not found, using base`
+    return
+  }
+  policy = name
+}
+
 async function scrub($: EngineInterface, text: string): Promise<Scrubbed> {
-  const res = await $.mcp.call(SERVER, 'redact_text', { text })
+  const res = await $.mcp.call(SERVER, 'redact_text', policy ? { text, policy } : { text })
   const block = res.content.find((b: { type: string }) => b.type === 'text') as { text?: string } | undefined
   if (res.isError || !block?.text) throw new Error('Philter returned no result')
   const body = JSON.parse(block.text) as { filtered_text?: string; redaction_count?: number; error?: string }
@@ -38,7 +111,8 @@ async function scrub($: EngineInterface, text: string): Promise<Scrubbed> {
 function showCount($: EngineInterface, added: number) {
   total += added
   $.ui.status(
-    isOn ? `🛡 Philter: ${total} redacted${allowImages ? ' · images ALLOWED' : ''}` : '🛡 Philter: OFF',
+    (isOn ? `🛡 Philter: ${total} redacted${allowImages ? ' · images ALLOWED' : ''}` : '🛡 Philter: OFF') +
+      (policyNote ? ` · ${policyNote}` : ''),
   )
 }
 
@@ -49,6 +123,7 @@ export const register: Register = on => {
       description:
         'Philter scrubbing: "/scrub on|off", "/scrub images on|off" (images can\'t be redacted), or "/scrub" for status',
     })
+    await resolvePolicy($, e.cwd)
     showCount($, 0)
     return next(e)
   })
@@ -65,7 +140,7 @@ export const register: Register = on => {
       : 'Images and PDFs are BLOCKED ("/scrub images on" to allow).'
     return {
       text: isOn
-        ? `Philter scrubbing is ON. ${total} items redacted this session. ${images}`
+        ? `Philter scrubbing is ON. ${total} items redacted this session. ${images} Policy: ${policy ?? 'base (comprehensive)'}.${policyNote ? ` ${policyNote}.` : ''}`
         : 'Philter scrubbing is OFF. Prompts, tool results and images go to the model unredacted.',
     }
   })

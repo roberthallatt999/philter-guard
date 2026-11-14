@@ -66,7 +66,7 @@ Run `/scrub` to check it's working.
 
 | | |
 |---|---|
-| `/scrub` | Show status and how many items were redacted this session |
+| `/scrub` | Show status, the policy in use, and how many items were redacted this session |
 | `/scrub off`, `/scrub on` | Turn scrubbing off (for example, to edit a file that holds real data) and back on |
 | `/scrub images on`, `/scrub images off` | Let images and PDFs from tools through unredacted, or block them again |
 
@@ -86,6 +86,19 @@ Run `/scrub` to check it's working.
 
 **If Philter is down:** your message isn't sent and tool output is withheld. Nothing gets through unredacted.
 
+## Choosing a policy per project
+
+Put a file named `.philter` in the project folder. Its first line (blank lines and `#` comments are skipped) names a set from `sets/`:
+
+```
+# philter-guard set
+acme
+```
+
+The mod looks for `.philter` in the folder Claude Code started in, then in each parent folder, and stops after the repository root (the first folder that is a repo top). It reads the file once, when the session starts, so the policy follows the starting folder and a change needs a new session. With no file, the base policy `comprehensive` is used. The base includes the credential rules.
+
+If the file can't be read or names an invalid set, or the set isn't on the server (run `./sync-policy.sh`), the base is used and the status line says `⚠ .philter unreadable or invalid, using base` or `⚠ policy "acme" not found, using base`. Nothing is blocked. `/scrub` shows the policy in use.
+
 ## Adding rules for a new project
 
 Every policy is the base, `library/api-keys.json`, and the pieces a set includes. Every client gets the base and the API-key rules. A set can't opt out of them.
@@ -100,6 +113,7 @@ Run `bash tests/test_build.sh` to test the build itself. Commit the change so ev
 
 ## Limits
 
+- The `.philter` set follows the folder the session started in. Changing directory inside a session doesn't change it.
 - The secrets rules in `library/api-keys.json` are a backstop for the optimizer's access guard, not a replacement for it. They catch known key formats and labelled values only. There is no generic high-entropy rule, so unlabelled random strings pass through.
 - Text already sent to Claude before the mod was on isn't covered.
 - Some inputs never go through Philter: CLAUDE.md, memory files, slash-command arguments, and images you choose to send.
