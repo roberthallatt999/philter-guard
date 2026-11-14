@@ -90,24 +90,30 @@ Work on `main` in philter-mcp, as its history does. In claude-optimizer, check t
 
 **Interfaces:**
 - Consumes: the Task 1 layout. The base always merges `library/api-keys.json`.
-- Produces: the per-piece test convention. Each `library/*.json` may carry `"_tests": [[classification, text, must_catch_or_null], …]`. Same tuple meaning as the existing `CASES`. Task 1's build already strips them.
+- Produces: the per-piece test convention. `tests/cases/<piece>.py` exports `CASES = [(classification, text, must_catch_or_None), …]`, with the same meaning as the existing `CASES`. A file name's hyphens become underscores (`api-keys` → `api_keys.py`).
 
-- [ ] **Step 1: Extend `tests/test_patterns.py`** so it loads patterns from the base plus every `library/*.json`, and runs the base `CASES` plus every piece's `_tests`. A failing line says which piece it came from.
-- [ ] **Step 2: Add `_tests` to `library/api-keys.json`** with no patterns yet. Use made-up values. Must catch:
-  - `secret-aws-access-key`: `AKIAABCDEFGHIJKLMNOP`
-  - `secret-github-token`: `ghp_` + 36 alphanumerics, and `github_pat_` + 82 characters
-  - `secret-slack-token`: `xoxb-0000-0000-abcdefabcdef`
-  - `secret-stripe-key`: `sk_live_` + 24 alphanumerics
-  - `secret-anthropic-key`: `sk-ant-api03-` + 40 characters
-  - `secret-openai-key`: `sk-proj-` + 40 characters
-  - `secret-google-api-key`: `AIza` + 35 characters
-  - `secret-npm-token`: `npm_` + 36 characters
-  - `secret-philter-key`: `sk_` + 32 hex
-  - `secret-jwt`: a three-part `eyJ…` token
-  - `secret-private-key`: a `-----BEGIN OPENSSH PRIVATE KEY-----` block
-  - `secret-auth-header`: `Authorization: Bearer abc.def.ghi` catches the value only
-  - `secret-url-password`: `postgres://app:hunter2pass@db:5432/x` catches `hunter2pass`
-  - `secret-labelled-value`: `DB_PASSWORD=Xy7!longvalue`, `"client_secret": "abcd1234efgh"` and `?access_token=abcd1234efgh` each catch the value only
+- [ ] **Step 1: Extend `tests/test_patterns.py`** so it loads patterns from the base plus every `library/*.json`, and runs the base `CASES` plus every `tests/cases/*.py` module's `CASES`. A failing line says which piece it came from, and prints classification and pass/fail only, never the value: printed fake credentials trip the guard and the redactor.
+- [ ] **Step 2: Write `tests/cases/api_keys.py`** (a `CASES` list, same tuple shape), with no patterns in the piece yet.
+
+  **Ruling (controller):** no file may contain a credential-shaped literal. The safety guard refuses to read such files, and GitHub secret scanning would flag them. Build every fake value at runtime from parts, e.g. `"AK" + "IA" + "A" * 16`, or a prefix joined to `"x" * n`.
+
+  This replaces the `_tests` convention: every piece's cases live in `tests/cases/<piece>.py`, which `test_patterns.py` imports.
+
+  Must catch, one case per classification, each value assembled at runtime:
+  - `secret-aws-access-key`: an AWS access-key-ID-shaped value
+  - `secret-github-token`: the classic and fine-grained GitHub token forms
+  - `secret-slack-token`: a bot token form
+  - `secret-stripe-key`: a live secret key form
+  - `secret-anthropic-key`
+  - `secret-openai-key` (project key form)
+  - `secret-google-api-key`
+  - `secret-npm-token`
+  - `secret-philter-key`: the bootstrap form, a 3-character prefix + 32 hex
+  - `secret-jwt`: three base64url segments
+  - `secret-private-key`: a PEM private-key header and body
+  - `secret-auth-header`: a bearer header. Only the value is caught.
+  - `secret-url-password`: a database URL with user and password. Only the password is caught.
+  - `secret-labelled-value`: an uppercase env line ending in PASSWORD, a JSON client-secret pair, and an access-token query parameter. Only the value is caught in each.
 
   Must not match (`None`), each checked against **every** `secret-` classification:
   - a 40-hex git SHA
