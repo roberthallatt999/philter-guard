@@ -31,7 +31,13 @@ DB_HOST = "db.internal"
 
 PW = fake("", 12, MIXED)
 PW_SLASH = fake("", 5, ALNUM) + "/" + fake("", 5, ALNUM)
-BEARER = fake("", 30, ALNUM)
+LBL_ENV = "DB_" + "PASSWORD"
+LBL_LOWER = "pass" + "word"
+LBL_TOKEN = "tok" + "en"
+EQ, COLON, DQ, SQ = "=", ": ", '"', "'"
+LETTERS =fake("", 14, "aBdEfGhJkLmNp")
+PUNCT = fake("", 4, "aBdE") + ";" + fake("", 4, "kLmN") + "," + fake("", 3, "pQr")
+BEARER =fake("", 30, ALNUM)
 JWT = ".".join([fake("eyJ", 20, URLSAFE), fake("", 24, URLSAFE), fake("", 24, URLSAFE)])
 PEM_FULL = f"{PEM_BEGIN}\n{PEM_LINE}\n{PEM_LINE}\n{PEM_END}"
 PEM_TRUNC = f"{PEM_BEGIN}\n{PEM_LINE}\n{PEM_LINE}"
@@ -73,6 +79,10 @@ CASES = [
     ("secret-labelled-value", f'{{"client_secret": "{PW}"}}', PW),
     ("secret-labelled-value", f"https://x.test/cb?access_token={PW}", PW),
     ("secret-labelled-value", f"https://x.test/cb?access_token={PW}&next=1", PW),
+    ("secret-labelled-value", LBL_ENV + EQ + LETTERS, LETTERS),
+    ("secret-labelled-value", LBL_LOWER + EQ + LETTERS + " and more words", LETTERS),
+    ("secret-labelled-value", LBL_LOWER + EQ + DQ + PUNCT + DQ, PUNCT),
+    ("secret-labelled-value", LBL_TOKEN + COLON + SQ + PUNCT + SQ, PUNCT),
     # --- must not match (checked against every secret- classification)
     ("secret-github-token", SHA40, None),
     ("secret-github-token", UUID, None),
@@ -87,6 +97,8 @@ CASES = [
     ("secret-philter-key", fake("fk_", 32, HEX), None),
     ("secret-url-password", "https://example.com/a:b@c", None),
     ("secret-url-password", "https://example.com:8080/contact/me@example.org", None),
+    ("secret-url-password", "https://example.com:8080?email=me@example.org", None),
+    ("secret-url-password", "https://example.com:8080#me@example.org", None),
     # ordinary code and prose around the labels
     ("secret-labelled-value", "token = getToken()", None),
     ("secret-labelled-value", "password = os.environ['DB_PASSWORD']", None),
