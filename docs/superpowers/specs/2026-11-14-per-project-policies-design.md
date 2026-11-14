@@ -80,7 +80,7 @@ Robert picked A.
 
 ```
 policies/comprehensive.json   the base, unchanged in role (built-in filters, Canadian/US identifiers, ignore rules)
-library/secrets.json          new: the secrets piece, always merged into the base
+library/api-keys.json          new: the secrets piece, always merged into the base
 library/<piece>.json          one per data source; same shape as today's projects/*.json
 library/_example.json.disabled
 sets/<set>.json               one per client project
@@ -103,7 +103,7 @@ hyphens. `comprehensive` is reserved for the base.
 
 ### Building and uploading (`sync-policy.sh`)
 
-- **Base policy `comprehensive`** = `policies/comprehensive.json` + `library/secrets.json`. It's still the
+- **Base policy `comprehensive`** = `policies/comprehensive.json` + `library/api-keys.json`. It's still the
   default (`PHILTER_DEFAULT_POLICY`), so repos without a `.philter` file get it.
 - **One policy per set** = the base (including secrets) + each piece the set includes, in the order listed.
   Pieces are appended to `.identifiers.identifiers` and `.identifiers.dictionaries`, the same way the merge
@@ -137,7 +137,7 @@ hyphens. `comprehensive` is reserved for the base.
 - The policy is chosen once per session. A mid-session directory change doesn't switch it.
 - `/scrub` (status) also reports which policy is in use.
 
-### The secrets piece (`library/secrets.json`)
+### The secrets piece (`library/api-keys.json`)
 
 Rules for values that look like credentials when they show up in command output, logs, API responses or data
 files:
@@ -159,7 +159,7 @@ lockfile integrity values must pass through, and tests cover that. Classificatio
 
 ### Tests
 
-- `tests/test_patterns.py` loads the base, `library/secrets.json`, and every piece in `library/`. Each piece
+- `tests/test_patterns.py` loads the base, `library/api-keys.json`, and every piece in `library/`. Each piece
   can bring its own cases: either a `tests/cases/<piece>.py` module or a `_tests` array inside the piece file.
   The builder picks one and uses it everywhere. Cases are pairs of "must catch" and "must not match", using
   made-up values only.
@@ -224,6 +224,9 @@ backstop, not a replacement for the optimizer's access guard.
 - `.philter` is looked up from the working directory up to the git root, and read once per session.
 - Stale server policies are reported, never auto-deleted.
 - The optimizer option is named `philter` and lives under `[options]` in `ai-config.conf`.
+- The credentials piece is the file `library/api-keys.json`. The optimizer's safety guard blocks any path
+  starting with `secrets` or `credentials`, so a file with either name couldn't be edited or tested in a
+  guarded session.
 - `--doctor` doesn't check the server, because that would put the Philter admin key in the optimizer.
 - The fallback to the base policy sends no `policy` argument, so the server default applies, the same as when
   there's no `.philter`. A `.philter` that names `comprehensive` is valid and means the base.

@@ -4,7 +4,7 @@
 
 **Goal:** Let each client repo pick a named Philter policy set (base + secrets + that client's pieces) through a committed `.philter` file, with the claude-optimizer able to write that file.
 
-**Architecture:** `sync-policy.sh` builds one Philter policy per `sets/<set>.json` from `policies/comprehensive.json` + `library/secrets.json` + the set's listed `library/*.json` pieces, and uploads each. The philter-scrub mod finds `.philter` at session start, checks the set exists with `list_policies`, and passes `policy` on every `redact_text` call. The optimizer's `setup-project.sh` writes `.philter` from `philter = <set>` in `ai-config.conf`.
+**Architecture:** `sync-policy.sh` builds one Philter policy per `sets/<set>.json` from `policies/comprehensive.json` + `library/api-keys.json` + the set's listed `library/*.json` pieces, and uploads each. The philter-scrub mod finds `.philter` at session start, checks the set exists with `list_policies`, and passes `policy` on every `redact_text` call. The optimizer's `setup-project.sh` writes `.philter` from `philter = <set>` in `ai-config.conf`.
 
 **Tech Stack:** bash + jq (sync), Python 3 (pattern tests), TypeScript Claude Code mod (`claude plugin test`), bash (optimizer, `test-*.sh` suites).
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Set names: lowercase letters, digits, hyphens (`^[a-z0-9][a-z0-9-]*$`). `comprehensive` is reserved for the base, and is also a valid `.philter` value meaning "base".
-- Every built policy contains the base and `library/secrets.json`. No set can opt out.
+- Every built policy contains the base and `library/api-keys.json`. No set can opt out.
 - The mod never holds the Philter API key. It only calls the `philter` MCP server (`redact_text`, `list_policies`).
 - The mod still fails closed when Philter can't be reached. That behaviour and its existing tests are unchanged.
 - Fallback to the base (`.philter` names a set that isn't on the server, or the file can't be read) sends **no** `policy` argument and shows a warning in the status line. It never blocks.
@@ -46,11 +46,11 @@ Work on `main` in philter-mcp, as its history does. In claude-optimizer, check t
 
 **Files:**
 - Create: `library/_example.json.disabled` (moved from `projects/_example.json.disabled`; same content, `_about` text updated)
-- Create: `library/secrets.json` (placeholder `{ "_about": "Credentials. Always merged into every policy.", "identifiers": [] }`. Task 2 fills it.)
+- Create: `library/api-keys.json` (placeholder `{ "_about": "Credentials. Always merged into every policy.", "identifiers": [] }`. Task 2 fills it.)
 - Create: `sets/_example.json.disabled` → `{ "_about": "Template. Copy to sets/<client>.json.", "include": ["example"] }`
 - Delete: `projects/` (only the template lives there)
 - Modify: `sync-policy.sh`
-- Create: `tests/test_build.sh`, `tests/fixtures/build/` (a tiny base, `library/secrets.json`, `library/a.json`, `library/b.json`, sets)
+- Create: `tests/test_build.sh`, `tests/fixtures/build/` (a tiny base, `library/api-keys.json`, `library/a.json`, `library/b.json`, sets)
 - Modify: `README.md` (the "adding project rules" section and the What's-in-here table)
 
 **Interfaces:**
@@ -84,16 +84,16 @@ Work on `main` in philter-mcp, as its history does. In claude-optimizer, check t
 ### Task 2: The secrets piece and per-piece pattern tests
 
 **Files:**
-- Modify: `library/secrets.json`
+- Modify: `library/api-keys.json`
 - Modify: `tests/test_patterns.py`
 - Modify: `README.md` (Limits: secrets rules are a backstop for the optimizer's access guard, not a replacement)
 
 **Interfaces:**
-- Consumes: the Task 1 layout. The base always merges `library/secrets.json`.
+- Consumes: the Task 1 layout. The base always merges `library/api-keys.json`.
 - Produces: the per-piece test convention. Each `library/*.json` may carry `"_tests": [[classification, text, must_catch_or_null], …]`. Same tuple meaning as the existing `CASES`. Task 1's build already strips them.
 
 - [ ] **Step 1: Extend `tests/test_patterns.py`** so it loads patterns from the base plus every `library/*.json`, and runs the base `CASES` plus every piece's `_tests`. A failing line says which piece it came from.
-- [ ] **Step 2: Add `_tests` to `library/secrets.json`** with no patterns yet. Use made-up values. Must catch:
+- [ ] **Step 2: Add `_tests` to `library/api-keys.json`** with no patterns yet. Use made-up values. Must catch:
   - `secret-aws-access-key`: `AKIAABCDEFGHIJKLMNOP`
   - `secret-github-token`: `ghp_` + 36 alphanumerics, and `github_pat_` + 82 characters
   - `secret-slack-token`: `xoxb-0000-0000-abcdefabcdef`
@@ -119,7 +119,7 @@ Work on `main` in philter-mcp, as its history does. In claude-optimizer, check t
   - `api_key=` at the end of a line
   - `Authorization: Bearer` with no value
 - [ ] **Step 3: Run it and check it fails.** Run: `python3 tests/test_patterns.py`. Expected: the new secrets cases FAIL, and the base cases still pass.
-- [ ] **Step 4: Write the `identifiers` in `library/secrets.json`.** Use one entry per classification above, each with `identifierFilterStrategies: [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]`. Use `groupNumber` where only the value is caught. Labels for `secret-labelled-value`: password, passwd, pwd, secret, token, api_key/apikey/api-key, access_key, client_secret, private_key, as a whole key or a key suffix (`DB_PASSWORD`). Values need 6 or more characters with no whitespace or quotes.
+- [ ] **Step 4: Write the `identifiers` in `library/api-keys.json`.** Use one entry per classification above, each with `identifierFilterStrategies: [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]`. Use `groupNumber` where only the value is caught. Labels for `secret-labelled-value`: password, passwd, pwd, secret, token, api_key/apikey/api-key, access_key, client_secret, private_key, as a whole key or a key suffix (`DB_PASSWORD`). Values need 6 or more characters with no whitespace or quotes.
 
   The helper checks a "must not match" case only against its own classification. For the shared no-match list, add a loop that checks those texts against all `secret-*` patterns.
 - [ ] **Step 5: Run the tests and check they pass.** Run: `python3 tests/test_patterns.py && bash tests/test_build.sh`. Expected: all pass.
@@ -129,7 +129,7 @@ Work on `main` in philter-mcp, as its history does. In claude-optimizer, check t
   3. Expected: the token comes back as `{{{REDACTED-secret-github-token}}}`, and the SHA and UUID come back unchanged.
 
   Java's regex engine is the final word. Fix any pattern that Python accepts but Philter rejects.
-- [ ] **Step 7: Commit.** `git commit -am "Policy: secrets piece in every policy, per-piece pattern tests"` (add `library/secrets.json`).
+- [ ] **Step 7: Commit.** `git commit -am "Policy: secrets piece in every policy, per-piece pattern tests"` (add `library/api-keys.json`).
 
 ### Task 3: The mod picks the policy from `.philter`
 
