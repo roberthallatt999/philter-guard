@@ -1,0 +1,52 @@
+# Philter + philter-mcp, both restarting automatically (including after reboot).
+#   MCP endpoint:  http://localhost:8000/mcp     MCP health: http://localhost:8000/health
+#   Philter API:   https://localhost:8080        (self-signed cert, curl -k)
+# Secrets (PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY) live in ./.env (chmod 600).
+# Losing or changing PHILTER_ENCRYPTION_KEY makes the data in the philter-data volume unrecoverable.
+# Based on https://github.com/philterd/philter-mcp and https://github.com/philterd/philter
+# Fixed project name so the data volume keeps its name wherever this folder lives.
+name: philter-mcp
+
+
+services:
+  philter:
+    image: philterd/philter:4.0.1
+    platform: linux/amd64          # only amd64 is published; runs under emulation on Apple Silicon
+    container_name: philter
+    environment:
+      STORAGE_TYPE: sqlite
+      SQLITE_PATH: /opt/philter/data/philter.db
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?missing in .env}
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:?missing in .env}
+    volumes:
+      - philter-data:/opt/philter/data
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: always
+
+  philter-mcp:
+    image: philterd/philter-mcp:latest
+    container_name: philter-mcp
+    depends_on:
+      - philter
+    environment:
+      PHILTER_BASE_URL: https://philter:8080
+      # philter-mcp sends this verbatim as the Authorization header; Philter 4.x wants "Bearer <key>".
+      PHILTER_API_KEY: "Bearer ${PHILTER_BOOTSTRAP_API_KEY:?missing in .env}"
+      PHILTER_DEFAULT_POLICY: ${PHILTER_DEFAULT_POLICY:-comprehensive}
+      PHILTER_VERIFY_SSL: "false"   # Philter uses a self-signed cert on the internal network
+      PHILTER_MCP_TRANSPORT: streamable-http
+      PHILTER_MCP_HOST: 0.0.0.0
+      PHILTER_MCP_PORT: "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+volumes:
+  philter-data:

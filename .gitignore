@@ -1,0 +1,13 @@
+# Secrets: never commit. Run ./setup.sh to create one (format in README.md).
+.env
+.env.*
+
+# Written by Claude Code when it loads the mod
+**/.claude-plugin/types/
+
+# OS / editor
+.DS_Store
+*~
+*.swp
+*.log
+node_modules/

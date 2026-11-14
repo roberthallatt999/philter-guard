@@ -1,0 +1,18 @@
+{
+  "_about": "Template. Copy to projects/<project-name>.json (the .json ending is what makes it active).",
+  "identifiers": [
+    {
+      "classification": "example-client-id",
+      "pattern": "\\bCLT-\\d{6}\\b",
+      "caseSensitive": false,
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    }
+  ],
+  "dictionaries": [
+    {
+      "classification": "example-client-names",
+      "terms": ["Acme Clinic", "Jane Example"],
+      "customFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "ignored": [
+    { "name": "tool-and-product-names", "caseSensitive": false,
+      "terms": ["Philter", "Claude", "Claude Code", "Anthropic", "OrbStack", "Docker", "GitHub", "Cloudflare", "Context7"] }
+  ],
+  "ignoredPatterns": [
+    { "name": "file-paths",      "pattern": "(?:~|\\.{1,2})?(?:/[\\w.@+-]+){2,}/?" },
+    { "name": "version-numbers", "pattern": "\\bv?\\d+\\.\\d+\\.\\d+(?:[-+.][\\w.]+)?\\b" },
+    { "name": "log-timestamps",  "pattern": "\\b\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(?::\\d{2}(?:[.,]\\d+)?)?(?:Z|[+-]\\d{2}:?\\d{2})?\\b" }
+  ],
+  "identifiers": {
+    "person": {
+      "phEyeConfiguration": {
+        "modelPath": "ph-eye-pii-en-small",
+        "labels": ["name"],
+        "threshold": 0.8
+      },
+      "phEyeFilterStrategies": [{ "strategy": "REDACT" }]
+    },
+    "age":                  { "ageFilterStrategies":                  [{ "strategy": "REDACT" }] },
+    "date":                 { "onlyValidDates": true, "dateFilterStrategies": [{ "strategy": "REDACT" }] },
+    "ssn":                  { "ssnFilterStrategies":                  [{ "strategy": "REDACT" }] },
+    "itin":                 { "itinFilterStrategies":                 [{ "strategy": "REDACT" }] },
+    "ein":                  { "einFilterStrategies":                  [{ "strategy": "REDACT" }] },
+    "driversLicense":       { "driversLicenseFilterStrategies":       [{ "strategy": "REDACT" }] },
+    "passportNumber":       { "passportNumberFilterStrategies":       [{ "strategy": "REDACT" }] },
+    "emailAddress":         { "emailAddressFilterStrategies":         [{ "strategy": "REDACT" }] },
+    "phoneNumber":          { "phoneNumberFilterStrategies":          [{ "strategy": "REDACT" }] },
+    "phoneNumberExtension": { "phoneNumberExtensionFilterStrategies": [{ "strategy": "REDACT" }] },
+    "streetAddress":        { "streetAddressFilterStrategies":        [{ "strategy": "REDACT" }] },
+    "hospital":             { "hospitalFilterStrategies":             [{ "strategy": "REDACT" }] },
+    "creditCard": {
+      "onlyValidCreditCardNumbers": false,
+      "creditCardFilterStrategies": [{ "strategy": "REDACT" }]
+    },
+    "bankRoutingNumber":    { "bankRoutingNumberFilterStrategies":    [{ "strategy": "REDACT" }] },
+    "ibanCode":             { "ibanCodeFilterStrategies":             [{ "strategy": "REDACT" }] },
+    "bitcoinAddress":       { "bitcoinAddressFilterStrategies":       [{ "strategy": "REDACT" }] },
+    "ipAddress":            { "ipAddressFilterStrategies":            [{ "strategy": "REDACT" }] },
+    "macAddress":           { "macAddressFilterStrategies":           [{ "strategy": "REDACT" }] },
+    "vin":                  { "vinFilterStrategies":                  [{ "strategy": "REDACT" }] },
+    "trackingNumber":       { "trackingNumberFilterStrategies":       [{ "strategy": "REDACT" }] },
+    "canadaSin":            { "canadaSinFilterStrategies":            [{ "strategy": "REDACT" }] },
+
+    "identifiers": [
+      {
+        "classification": "us-zip-code",
+        "pattern": "(?:\\b(?:AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)|(?i:\\bzip(?:\\s*code)?\\s*:?))\\s+(\\d{5}(?:-\\d{4})?)\\b",
+        "groupNumber": 1,
+        "caseSensitive": true,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "health-card-number",
+        "pattern": "\\b(?:\\d{4}[- ]\\d{3}[- ]\\d{3}(?:[- ]?[A-Za-z]{2})?|\\d{10}[- ]?[A-Za-z]{2})\\b",
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "health-card-number",
+        "pattern": "\\b[A-Z]{4}[ ]?\\d{4}[ ]?\\d{4}\\b",
+        "caseSensitive": true,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "health-card-number",
+        "pattern": "(?i)\\b(?:health(?:\\s*card)?|PHN|HCN|OHIP|RAMQ|AHCIP|MSP|MCP|MSI|PHIN|medicare)\\b\\s*(?:no\\.?|number|num|#)?\\s*[:#]?\\s*(\\d[\\d -]{6,12}\\d)",
+        "groupNumber": 1,
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "postal-code",
+        "pattern": "\\b[ABCEGHJ-NPRSTVXY]\\d[ABCEGHJ-NPRSTV-Z][ -]?\\d[ABCEGHJ-NPRSTV-Z]\\d\\b",
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "drivers-licence",
+        "pattern": "\\b[A-Z]\\d{4}[- ]?\\d{5}[- ]?\\d{5}\\b",
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "drivers-licence",
+        "pattern": "(?i)\\b(?:driver'?s?\\s*licen[cs]e|DL|permis de conduire)\\b\\s*(?:no\\.?|number|#)?\\s*[:#]?\\s*([A-Z0-9][A-Z0-9 -]{4,18}[A-Z0-9])",
+        "groupNumber": 1,
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "passport-number",
+        "pattern": "\\b[A-Z]{2}\\d{6}\\b",
+        "caseSensitive": true,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "business-number",
+        "pattern": "\\b\\d{9}[ ]?R[TPCRMZ][ ]?\\d{4}\\b",
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "bank-account",
+        "pattern": "\\b\\d{5}[- ]\\d{3}(?:[- ]\\d{5,12})?\\b",
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "health-facility",
+        "pattern": "\\b(?:(?:St|Ste|Mt)\\.\\s+|[A-Z][A-Za-z'&-]*\\s+){1,6}(?:Hospital|Health Sciences Centre|Health Centre|Health Center|Medical Centre|Medical Center|Clinic|Infirmary|Sanatorium|Rehabilitation Centre|Long-Term Care|Care Centre)\\b",
+        "caseSensitive": true,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "health-facility",
+        "pattern": "\\b(?:Hospital|Centre|Center|Clinic|Institute)\\s+(?:for|of)(?:\\s+(?:(?:and|of|the|&)\\s+(?!(?:Hospital|Centre|Center|Clinic|Institute)\\b))?[A-Z][A-Za-z'-]*){1,6}",
+        "caseSensitive": true,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      },
+      {
+        "classification": "medical-record-number",
+        "pattern": "(?i)\\b(?:MRN|medical\\s*record|chart|patient\\s*(?:id|number|no\\.?))\\b\\s*(?:no\\.?|number|#)?\\s*[:#]?\\s*([A-Z0-9][A-Z0-9-]{3,15})",
+        "groupNumber": 1,
+        "caseSensitive": false,
+        "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      }
+    ],
+
+    "dictionaries": [
+      {
+        "classification": "province",
+        "terms": ["Ontario", "Quebec", "Québec", "British Columbia", "Alberta", "Saskatchewan", "Manitoba",
+                  "Nova Scotia", "New Brunswick", "Prince Edward Island", "Newfoundland", "Labrador",
+                  "Newfoundland and Labrador", "Yukon", "Northwest Territories", "Nunavut"],
+        "customFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+      }
+    ]
+  }
+}

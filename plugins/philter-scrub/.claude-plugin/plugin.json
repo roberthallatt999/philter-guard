@@ -1,0 +1,10 @@
+{
+  "name": "philter-scrub",
+  "version": "0.1.0",
+  "description": "Runs every prompt and tool result through the local Philter server so personal data is redacted before it reaches the model",
+  "license": "MIT",
+  "author": {
+    "name": "roberthallatt999"
+  },
+  "repository": "https://github.com/roberthallatt999/philter-guard"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "philter-guard",
+  "owner": { "name": "roberthallatt999" },
+  "description": "Local Philter redaction for Claude Code: keeps customer data in logs and program output out of the chat",
+  "plugins": [
+    {
+      "name": "philter-scrub",
+      "source": "./plugins/philter-scrub",
+      "description": "Redacts personal data from prompts and tool output (logs, command output, data files) with a local Philter server before it reaches Claude"
+    }
+  ]
+}
