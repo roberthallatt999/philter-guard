@@ -1,5 +1,5 @@
 {
-  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py. Known gaps: a YAML-style line (colon separator) with an unquoted letters-only value is not caught; a URL password made only of digits and followed by a slash is not caught; a quoted value containing spaces is not caught.",
+  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py. Known gaps: a YAML-style line (colon separator) with an unquoted letters-only value is not caught; an unquoted value is caught only up to its first space, quote, & ; or , ; a URL password that starts with 1-5 digits and then ? or #, or has a further / ? # = or & between that digit prefix and the @, is read as host:port and not caught.",
   "identifiers": [
     {
       "classification": "secret-aws-access-key",
@@ -125,7 +125,7 @@
     },
     {
       "classification": "secret-url-password",
-      "pattern": "\\b[a-z][a-z0-9+.-]*://[^\\s:/@]+:(?!\\d{1,5}[/?#])(\\S{3,})@(?=[^\\s@/]+)",
+      "pattern": "\\b[a-z][a-z0-9+.-]*://[^\\s:/@]+:(?!\\d{1,5}(?:[?#]|/(?:[^@\\s]*[/?#=&]|(?!\\S*@))))(\\S{3,})@(?=[^\\s@/]+)",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -137,7 +137,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*=[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]\\w*\\.[A-Za-z_])([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
+      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*=[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]+(?:\\.[A-Za-z_]+)+(?:[;,)\\](\\[]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -161,7 +161,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*[:=][ \\t]*\\\"(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^\\\"\\s<>{$]{6,})\\\"",
+      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*[:=][ \\t]*\\\"(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^\\\"\\s<>{$][^\\\"\\r\\n<>{$]{5,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -173,7 +173,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*[:=][ \\t]*'(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^'\\s<>{$]{6,})'",
+      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*[:=][ \\t]*'(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^'\\s<>{$][^'\\r\\n<>{$]{5,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [

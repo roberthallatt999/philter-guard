@@ -36,7 +36,10 @@ LBL_LOWER = "pass" + "word"
 LBL_TOKEN = "tok" + "en"
 EQ, COLON, DQ, SQ = "=", ": ", '"', "'"
 LETTERS =fake("", 14, "aBdEfGhJkLmNp")
-PUNCT = fake("", 4, "aBdE") + ";" + fake("", 4, "kLmN") + "," + fake("", 3, "pQr")
+DOTTED = fake("", 5, "abcde") + "." + fake("", 6, "fG3hJk")
+PW_DIGSLASH = fake("", 4, "1234") + "/" + fake("", 5, "aBdEf")
+SPACED = fake("", 6, "aBdEf") + " " + fake("", 6, "kLmNp")
+PUNCT =fake("", 4, "aBdE") + ";" + fake("", 4, "kLmN") + "," + fake("", 3, "pQr")
 BEARER =fake("", 30, ALNUM)
 JWT = ".".join([fake("eyJ", 20, URLSAFE), fake("", 24, URLSAFE), fake("", 24, URLSAFE)])
 PEM_FULL = f"{PEM_BEGIN}\n{PEM_LINE}\n{PEM_LINE}\n{PEM_END}"
@@ -83,6 +86,10 @@ CASES = [
     ("secret-labelled-value", LBL_LOWER + EQ + LETTERS + " and more words", LETTERS),
     ("secret-labelled-value", LBL_LOWER + EQ + DQ + PUNCT + DQ, PUNCT),
     ("secret-labelled-value", LBL_TOKEN + COLON + SQ + PUNCT + SQ, PUNCT),
+    ("secret-labelled-value", LBL_ENV + EQ + DOTTED, DOTTED),
+    ("secret-url-password", f"{SCHEME}://{DB_USER}:{PW_DIGSLASH}@{DB_HOST}/appdb", PW_DIGSLASH),
+    ("secret-labelled-value", LBL_LOWER + EQ + DQ + SPACED + DQ, SPACED),
+    ("secret-labelled-value", LBL_TOKEN + COLON + SQ + LETTERS, LETTERS),
     # --- must not match (checked against every secret- classification)
     ("secret-github-token", SHA40, None),
     ("secret-github-token", UUID, None),
@@ -107,4 +114,6 @@ CASES = [
     ("secret-labelled-value", "password: this.password,", None),
     ("secret-labelled-value", "token: TokenResponse", None),
     ("secret-labelled-value", "token: expired", None),
+    ("secret-labelled-value", "password = this.password", None),
+    ("secret-labelled-value", "secret = process.env.SECRET;", None),
 ]
