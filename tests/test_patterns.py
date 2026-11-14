@@ -5,13 +5,18 @@ Run:  python3 tests/test_patterns.py
 Python's regex engine is close enough to Java's for these patterns. Philter itself
 is the final word: after a sync, check with the philter redact_text tool.
 """
+import importlib.util
 import json
 import pathlib
 import re
 import sys
 
-POLICY = pathlib.Path(__file__).resolve().parent.parent / "policies" / "comprehensive.json"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+POLICY = ROOT / "policies" / "comprehensive.json"
+# The base plus every library piece, since each piece's patterns end up in a built policy.
 patterns = json.loads(POLICY.read_text())["identifiers"]["identifiers"]
+for piece in sorted((ROOT / "library").glob("*.json")):
+    patterns += json.loads(piece.read_text()).get("identifiers", [])
 
 
 def matches(classification: str, text: str) -> list[str]:
@@ -60,12 +65,36 @@ CASES = [
      "Centre for Addiction and Mental Health"),
 ]
 
+# Per-piece cases: tests/cases/<piece>.py (hyphens become underscores) exports CASES, the
+# same tuples as above. Piece cases build fake credentials at runtime, so a failing line
+# prints only the piece, classification and case number, never the value.
+ALL = [("base", c) for c in CASES]
+for f in sorted((ROOT / "tests" / "cases").glob("*.py")):
+    spec = importlib.util.spec_from_file_location(f.stem, f)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    ALL += [(f.stem, c) for c in mod.CASES]
+
+
+def caught(want, got):
+    return any(want in g or g in want and len(g) >= len(want) - 1 for g in got)
+
+
+SECRET = {p["classification"] for p in patterns if p["classification"].startswith("secret-")}
+
 failed = 0
-for cls, text, want in CASES:
+for i, (source, (cls, text, want)) in enumerate(ALL):
     got = matches(cls, text)
-    ok = (not got) if want is None else any(want in g or g in want and len(g) >= len(want) - 1 for g in got)
+    ok = (not got) if want is None else caught(want, got)
+    if ok and want is None and source != "base":
+        # a piece's "must not match" case holds for every secret- classification
+        ok = not any(matches(c, text) for c in SECRET)
     if not ok:
         failed += 1
-        print(f"FAIL {cls}: {text!r} -> {got!r} (wanted {want!r})")
+        if source == "base":
+            print(f"FAIL {cls}: {text!r} -> {got!r} (wanted {want!r})")
+        else:
+            print(f"FAIL [{source}] {cls} case {i}: {'must not match' if want is None else 'must catch'}")
+CASES = [c for _, c in ALL]
 print(f"{len(CASES) - failed}/{len(CASES)} passed")
 sys.exit(1 if failed else 0)

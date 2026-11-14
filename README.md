@@ -92,7 +92,7 @@ Every policy is the base, `library/api-keys.json`, and the pieces a set includes
 
 1. Get the client's data schema (field names, ID formats, example values).
 2. Turn it into rules in a piece: copy `library/_example.json.disabled` to `library/<piece>.json`. Add regex `identifiers` (with a `classification`) and word-list `dictionaries`. Remember that backslashes have to be doubled in JSON.
-3. Add tests for the new patterns in `tests/test_patterns.py`, with made-up values only.
+3. Add tests for the new patterns in `tests/cases/<piece>.py` (hyphens in the piece name become underscores), exporting `CASES = [(classification, text, must_catch_or_None), ...]`. Build every fake value at runtime from parts so no file holds a credential-shaped literal. `python3 tests/test_patterns.py` runs them for every piece.
 4. Create the set: copy `sets/_example.json.disabled` to `sets/<client>.json` and list the piece names in `include`. Set names use lowercase letters, digits and hyphens. `comprehensive` is reserved.
 5. Run `./sync-policy.sh --dry-run` to validate and see the summary, then `./sync-policy.sh` to upload. A policy on the server with no matching set is reported as `Stale (not deleted)`.
 
@@ -100,6 +100,7 @@ Run `bash tests/test_build.sh` to test the build itself. Commit the change so ev
 
 ## Limits
 
+- The secrets rules in `library/api-keys.json` are a backstop for the optimizer's access guard, not a replacement for it. They catch known key formats and labelled values only. There is no generic high-entropy rule, so unlabelled random strings pass through.
 - Text already sent to Claude before the mod was on isn't covered.
 - Some inputs never go through Philter: CLAUDE.md, memory files, slash-command arguments, and images you choose to send.
 - Pattern-based detection over-redacts some ordinary numbers and misses unusual formats. Check placeholders in the output, and tune the policy when something slips through.

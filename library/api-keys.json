@@ -1,1 +1,80 @@
-{ "_about": "Credentials. Always merged into every policy.", "identifiers": [] }
+{
+  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py.",
+  "identifiers": [
+    {
+      "classification": "secret-aws-access-key",
+      "pattern": "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-github-token",
+      "pattern": "\\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{22,255})\\b",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-slack-token",
+      "pattern": "\\bxox[baprs]-[A-Za-z0-9-]{10,}",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-stripe-key",
+      "pattern": "\\b[sr]k_live_[A-Za-z0-9]{16,}\\b",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-anthropic-key",
+      "pattern": "\\bsk-ant-[A-Za-z0-9_-]{20,}",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-openai-key",
+      "pattern": "\\bsk-proj-[A-Za-z0-9_-]{20,}",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-google-api-key",
+      "pattern": "\\bAIza[0-9A-Za-z_-]{35}",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-npm-token",
+      "pattern": "\\bnpm_[A-Za-z0-9]{36}\\b",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-philter-key",
+      "pattern": "\\b[a-z][a-z_]{2}[0-9a-f]{32}\\b",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-jwt",
+      "pattern": "\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-private-key",
+      "pattern": "-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----(?:[\\s\\S]*?-----END (?:[A-Z]+ )*PRIVATE KEY-----)?",
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-auth-header",
+      "pattern": "\\bAuthorization[ \\t]*:[ \\t]*(?:Bearer|Basic|Token)[ \\t]+([A-Za-z0-9._~+/=-]{8,})",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-url-password",
+      "pattern": "\\b[a-z][a-z0-9+.-]*://[^\\s:/@]+:([^\\s@/]{3,})@",
+      "groupNumber": 1,
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    },
+    {
+      "classification": "secret-labelled-value",
+      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\"']?[ \\t]*[:=][ \\t]*[\"']?(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^\\s\"'<>{$(\\[]{6,})",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }]
+    }
+  ]
+}
