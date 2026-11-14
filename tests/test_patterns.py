@@ -85,7 +85,12 @@ SECRET = {p["classification"] for p in patterns if p["classification"].startswit
 failed = 0
 for i, (source, (cls, text, want)) in enumerate(ALL):
     got = matches(cls, text)
-    ok = (not got) if want is None else caught(want, got)
+    if want is None:
+        ok = not got
+    elif source != "base" and cls.startswith("secret-"):
+        ok = got == [want]  # only the value is caught, nothing more, nothing less
+    else:
+        ok = caught(want, got)
     if ok and want is None and source != "base":
         # a piece's "must not match" case holds for every secret- classification
         ok = not any(matches(c, text) for c in SECRET)
