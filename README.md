@@ -114,7 +114,7 @@ Run `bash tests/test_build.sh` to test the build itself. Commit the change so ev
 ## Limits
 
 - The `.philter` set follows the folder the session started in. Changing directory inside a session doesn't change it.
-- The secrets rules in `library/api-keys.json` are a backstop for the optimizer's access guard, not a replacement for it. They catch known key formats and labelled values only. There is no generic high-entropy rule, so unlabelled random strings pass through.
+- The secrets rules in `library/api-keys.json` are a backstop for the optimizer's access guard, not a replacement for it. They catch known key formats and labelled values only (including common framework config keys and PHP `define()` calls). A caught secret renders as a placeholder that names its rule, such as `secret-github-token`, rather than a bare id. There is no generic high-entropy rule, so unlabelled random strings pass through.
 - Text already sent to Claude before the mod was on isn't covered.
 - Some inputs never go through Philter: CLAUDE.md, memory files, slash-command arguments, and images you choose to send.
 - Pattern-based detection over-redacts some ordinary numbers and misses unusual formats. Check placeholders in the output, and tune the policy when something slips through.

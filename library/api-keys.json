@@ -1,113 +1,124 @@
 {
-  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py. Known gaps: a YAML-style line (colon separator) with an unquoted letters-only value is not caught; an unquoted value is caught only up to its first space, quote, & ; or , ; a URL password that starts with 1-5 digits and then ? or #, or has a further / ? # = or & between that digit prefix and the @, is read as host:port and not caught.",
+  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-, and each rule's placeholder names its classification. Labels cover password, passwd, secret, secret_key, token, api_key, access_key, client_secret, private_key, security_key, app_key, db_pass and an underscore-suffixed pwd (a value starting with a slash is never taken as one). A PHP define() call whose name ends in PASSWORD, KEY, SALT or SECRET is caught on its own rule. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py. Known gaps: a YAML-style line (colon separator) with an unquoted letters-only value is not caught; an unquoted value is caught only up to its first space, quote, & ; or , ; a URL password that starts with 1-5 digits and then ? or #, or has a further / ? # = or & between that digit prefix and the @, is read as host:port and not caught.",
   "identifiers": [
     {
       "classification": "secret-aws-access-key",
       "pattern": "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-aws-access-key}}}"
         }
       ]
     },
     {
       "classification": "secret-github-token",
       "pattern": "\\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{22,255})\\b",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-github-token}}}"
         }
       ]
     },
     {
       "classification": "secret-slack-token",
       "pattern": "\\bxox[baprs]-[A-Za-z0-9-]{10,}",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-slack-token}}}"
         }
       ]
     },
     {
       "classification": "secret-stripe-key",
       "pattern": "\\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}\\b",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-stripe-key}}}"
         }
       ]
     },
     {
       "classification": "secret-anthropic-key",
       "pattern": "\\bsk-ant-[A-Za-z0-9_-]{20,}",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-anthropic-key}}}"
         }
       ]
     },
     {
       "classification": "secret-openai-key",
       "pattern": "\\b(?:sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{48}\\b)",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-openai-key}}}"
         }
       ]
     },
     {
       "classification": "secret-google-api-key",
       "pattern": "\\bAIza[0-9A-Za-z_-]{35}",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-google-api-key}}}"
         }
       ]
     },
     {
       "classification": "secret-npm-token",
       "pattern": "\\bnpm_[A-Za-z0-9]{36}\\b",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-npm-token}}}"
         }
       ]
     },
     {
       "classification": "secret-philter-key",
       "pattern": "\\bsk_[0-9a-f]{32}\\b",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-philter-key}}}"
         }
       ]
     },
     {
       "classification": "secret-jwt",
       "pattern": "\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-jwt}}}"
         }
       ]
     },
     {
       "classification": "secret-private-key",
       "pattern": "-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----(?:[\\s\\S]*?-----END (?:[A-Z]+ )*PRIVATE KEY-----|(?:[ \\t]*\\r?\\n[A-Za-z0-9+/=]{16,}[ \\t]*)*)",
+      "caseSensitive": true,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-private-key}}}"
         }
       ]
     },
@@ -119,7 +130,7 @@
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-auth-header}}}"
         }
       ]
     },
@@ -131,55 +142,67 @@
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-url-password}}}"
         }
       ]
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*=[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]+(?:\\.[A-Za-z_]+)+(?:[;,)\\](\\[]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*=[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]+(?:\\.[A-Za-z_]+)+(?:[;,)\\](\\[]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-labelled-value}}}"
         }
       ]
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*:[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_][A-Za-z_.]*(?:[(\\[,;)\\]]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*:[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_][A-Za-z_.]*(?:[(\\[,;)\\]]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-labelled-value}}}"
         }
       ]
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*[:=][ \\t]*\\\"(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^\\\"\\s<>{$][^\\\"\\r\\n<>{$]{5,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*[:=][ \\t]*\\\"(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^\\\"\\s<>{$][^\\\"\\r\\n<>{$]{5,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-labelled-value}}}"
         }
       ]
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key)[\\\"']?[ \\t]*[:=][ \\t]*'(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^'\\s<>{$][^'\\r\\n<>{$]{5,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*[:=][ \\t]*'(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^'\\s<>{$][^'\\r\\n<>{$]{5,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
         {
           "strategy": "REDACT",
-          "redactionFormat": "{{{REDACTED-%t}}}"
+          "redactionFormat": "{{{REDACTED-secret-labelled-value}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-define-call",
+      "pattern": "\\bdefine\\s*\\(\\s*[\\\"'][A-Za-z0-9_]*(?:PASSWORD|KEY|SALT|SECRET)[\\\"']\\s*,\\s*[\\\"']([^\\\"'\\r\\n]{6,})[\\\"']",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-define-call}}}"
         }
       ]
     }

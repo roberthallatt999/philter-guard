@@ -48,6 +48,27 @@ SHA40 = fake("", 40, HEX)
 UUID = "-".join(fake("", n, HEX) for n in (8, 4, 4, 4, 12))
 INTEGRITY = fake("", 86, ALNUM + "+/")
 
+# framework config labels, each assembled from parts
+L_DJANGO = "DJANGO_" + "SECRET" + "_KEY"
+L_JWT = "JWT_" + "SECRET" + "_KEY"
+L_FLASK = "SECRET" + "_KEY"
+L_CRAFT = "CRAFT_" + "SECURITY" + "_KEY"
+L_LARAVEL = "APP" + "_KEY"
+L_DBPASS = "DB_" + "PASS"
+L_DBPASS_LONG = "DATABASE_" + "PASS"
+L_MYSQL_PWD = "MYSQL_" + "PWD"
+L_WP_PASSWORD = "DB_" + "PASSWORD"
+L_WP_KEY = "AUTH_" + "KEY"
+L_WP_SALT = "SECURE_AUTH_" + "SALT"
+L_WP_SECRET = "JWT_AUTH_" + "SECRET"
+B64 = "base64:" + fake("", 32, ALNUM + "+/")
+CWD = "/Users/someone/projects/site"
+SHORT = fake("", 5, ALNUM)
+
+
+def define(label, value):
+    return "define( '" + label + "', '" + value + "' );"
+
 
 def vendor(cls, value):
     return (cls, f"value {value} here", value)
@@ -116,4 +137,32 @@ CASES = [
     ("secret-labelled-value", "token: expired", None),
     ("secret-labelled-value", "password = this.password", None),
     ("secret-labelled-value", "secret = process.env.SECRET;", None),
+    # --- framework config keys (P4): must catch, one per form, values from parts
+    ("secret-labelled-value", L_DJANGO + EQ + PW, PW),
+    ("secret-labelled-value", L_JWT + " " + EQ + " " + DQ + PW + DQ, PW),
+    ("secret-labelled-value", L_FLASK + COLON + SQ + PW + SQ, PW),
+    ("secret-labelled-value", L_CRAFT + EQ + PW, PW),
+    ("secret-labelled-value", L_LARAVEL + EQ + B64, B64),
+    ("secret-labelled-value", L_DBPASS + EQ + PW, PW),
+    ("secret-labelled-value", L_DBPASS_LONG + EQ + DQ + PW + DQ, PW),
+    ("secret-define-call", define(L_WP_PASSWORD, PW), PW),
+    ("secret-define-call", define(L_WP_KEY, PW), PW),
+    ("secret-define-call", define(L_WP_SALT, PW), PW),
+    ("secret-define-call", define(L_WP_SECRET, PW), PW),
+    # --- working-directory variables (P5)
+    ("secret-labelled-value", L_MYSQL_PWD + EQ + PW, PW),
+    ("secret-labelled-value", "PW" + "D" + EQ + CWD, None),
+    ("secret-labelled-value", "OLD" + "PW" + "D" + EQ + CWD, None),
+    ("secret-labelled-value", '{"pw' + 'd": "' + CWD + '"}', None),
+    ("secret-labelled-value", L_MYSQL_PWD + EQ + CWD, None),
+    # --- near misses that must stay unredacted (P4)
+    ("secret-labelled-value", "by" + "pass" + EQ + PW, None),
+    ("secret-labelled-value", "com" + "pass" + COLON + PW, None),
+    ("secret-labelled-value", '{"com' + 'pass": "' + PW + '"}', None),
+    ("secret-labelled-value", "PASS" + "WORD_MIN_LENGTH = 8", None),
+    ("secret-labelled-value", "'pass" + "word_min_length' => 12", None),
+    ("secret-labelled-value", '"pass' + 'word_min_length": 8', None),
+    ("secret-define-call", define(L_WP_PASSWORD, SHORT), None),
+    ("secret-define-call", define(L_WP_KEY, SHORT), None),
+    ("secret-define-call", "define('WP_" + "DEBUG', true);", None),
 ]

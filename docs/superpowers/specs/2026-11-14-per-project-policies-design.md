@@ -155,14 +155,15 @@ files:
 - JWTs (three base64url segments starting `eyJ`).
 - PEM private key blocks.
 - `Authorization: Bearer|Basic …` header values.
+- WordPress-style `define('NAME', 'value')` calls whose name ends in PASSWORD, KEY, SALT or SECRET (value of 6+ characters).
 - Passwords in connection strings and URLs (`scheme://user:password@host`).
 - Values after key-like labels in config, env and JSON lines: `password`, `passwd`, `secret`, `token`,
-  `api_key`, `apikey`, `access_key`, `client_secret`, `private_key` (e.g. `DB_PASSWORD=…`,
+  `secret_key`, `api_key`, `apikey`, `access_key`, `client_secret`, `private_key`, `security_key`, `app_key`,
+  `db_pass` and an underscore-suffixed `pwd` (framework config: Django, Flask, JWT, Craft, Laravel) (e.g. `DB_PASSWORD=…`,
   `"client_secret": "…"`). Only the value is redacted, not the label.
 
 To avoid over-redaction, there's no rule for bare high-entropy strings. Commit SHAs, UUIDs, hashes and
-lockfile integrity values must pass through, and tests cover that. Classification names start with `secret-`
-(e.g. `{{{REDACTED-secret-github-token}}}`).
+lockfile integrity values must pass through, and tests cover that. Classification names start with `secret-`. Every rule has a REDACT strategy with a literal format that names its classification, so a placeholder reads as three braces, `REDACTED-`, the classification, three braces (for example the one for `secret-github-token`). Philter's own `%t` token renders as the id, so it is not used.
 
 ### Tests
 
