@@ -57,6 +57,27 @@ export async function findPhilterFile($: EngineInterface, cwd: string): Promise<
   }
 }
 
+// The live tool nests the array two levels down ({policies: {policies: [...], total}}),
+// and items may be strings or {name}. Search to a small depth for the first array.
+function findNames(v: unknown, depth: number): string[] | null {
+  if (Array.isArray(v))
+    return v
+      .map((x: unknown) => (typeof x === 'string' ? x : (x as { name?: unknown } | null)?.name))
+      .filter((x: unknown): x is string => typeof x === 'string')
+  if (depth >= 4 || !v || typeof v !== 'object') return null
+  for (const child of Object.values(v as object)) {
+    const found = findNames(child, depth + 1)
+    if (found) return found
+  }
+  return null
+}
+
+// What a person sees when Philter can't be used: names the policy if one is active.
+const why = () =>
+  policy
+    ? `Philter rejected policy ${policy} (is it synced? run sync-policy.sh)`
+    : 'Philter could not be reached'
+
 // null when the list can't be fetched or understood.
 async function listPolicies($: EngineInterface): Promise<string[] | null> {
   try {
@@ -64,15 +85,9 @@ async function listPolicies($: EngineInterface): Promise<string[] | null> {
     const block = res.content.find((b: { type: string }) => b.type === 'text') as { text?: string } | undefined
     if (res.isError || !block?.text) return null
     const body = JSON.parse(block.text) as unknown
-    const arr = Array.isArray(body)
-      ? body
-      : body && typeof body === 'object'
-        ? Object.values(body as object).find(Array.isArray)
-        : undefined
-    if (!arr) return null
+    const arr = findNames(body, 0)
+    if (!arr || arr.length === 0) return null // empty or unrecognised: unknown, not "none"
     return arr
-      .map((x: unknown) => (typeof x === 'string' ? x : (x as { name?: unknown } | null)?.name))
-      .filter((x: unknown): x is string => typeof x === 'string')
   } catch {
     return null
   }
@@ -183,7 +198,7 @@ export const register: Register = on => {
   }).catch(($, e, next) =>
     next.called
       ? next(e)
-      : { drop: 'Philter could not be reached, so the message was not sent. Check that the philter containers are running, or turn scrubbing off with /scrub off.' },
+      : { drop: `${why()}, so the message was not sent. Check that the philter containers are running, or turn scrubbing off with /scrub off.` },
   )
 
   // What tools hand back (file reads, command output, web pages, other MCP servers).
@@ -203,7 +218,7 @@ export const register: Register = on => {
     try {
       out = await scrub($, raw)
     } catch {
-      return { deny: 'Result withheld: Philter could not be reached to redact it.' }
+      return { deny: `Result withheld: ${why()}, so it could not be redacted.` }
     }
     if (out.count === 0) return ran
     showCount($, out.count)

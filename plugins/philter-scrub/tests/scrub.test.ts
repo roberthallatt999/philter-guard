@@ -122,7 +122,7 @@ test('source code is read unscrubbed, a log file is scrubbed', async ($, on) => 
 
 // ---- per-project policy (.philter) ----
 
-type World = { files: Record<string, string>; policies?: string[] | 'fail' | 'object' | 'junk' }
+type World = { files: Record<string, string>; policies?: string[] | 'fail' | 'object' | 'flat' | 'junk' | 'empty'; listBody?: unknown; redactError?: boolean }
 
 function setup(on: any, w: World) {
   const calls: { tool: string; args: any }[] = []
@@ -141,16 +141,25 @@ function setup(on: any, w: World) {
   on('mcp.call', (_: unknown, e: { tool: string; args: any }) => {
     calls.push({ tool: e.tool, args: e.args })
     if (e.tool === 'list_policies') {
+      if (w.listBody !== undefined)
+        return { value: { content: [{ type: 'text', text: JSON.stringify(w.listBody) }], isError: false } }
       if (w.policies === 'fail') throw new Error('down')
       const names = Array.isArray(w.policies) ? w.policies : ['set-acme']
+      // 'real' (the default for a list) is the live tool's shape: an object whose
+      // policies key holds another object, whose policies key holds the array.
       const text =
         w.policies === 'junk'
           ? 'not json'
           : w.policies === 'object'
             ? JSON.stringify({ policies: names })
-            : JSON.stringify(names)
+            : w.policies === 'flat'
+              ? JSON.stringify(names)
+              : w.policies === 'empty'
+                ? JSON.stringify({ policies: { policies: [], total: 0 } })
+                : JSON.stringify({ policies: { policies: names, total: names.length } })
       return { value: { content: [{ type: 'text', text }], isError: false } }
     }
+    if (w.redactError) return { value: { content: [{ type: 'text', text: 'policy not found' }], isError: true } }
     return philterSays('x', 0)
   })
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
@@ -170,6 +179,55 @@ test('uses the set named in .philter', async ($, on) => {
   await start($, '/w/acme')
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
   expect(redactArgs(w.calls).policy).toBe('set-acme')
+})
+
+test('accepts a bare list from list_policies', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: 'flat' })
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
+  expect(w.statuses.at(-1)).not.toContain('not found')
+})
+
+test('accepts the real two-level list_policies shape, items as objects', async ($, on) => {
+  const listBody = { policies: { policies: [{ name: 'default' }, { name: 'set-acme' }], total: 2 } }
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, listBody })
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
+  expect(w.statuses.at(-1)).not.toContain('not found')
+})
+
+test('the real shape lacking the set falls back to base with a warning', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: ['default', 'comprehensive'] })
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect('policy' in redactArgs(w.calls)).toBe(false)
+  expect(w.statuses.at(-1)).toContain('policy \\"acme\\" not found, using base')
+})
+
+test('an empty list is unknown, so the set is still sent', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: 'empty' })
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
+})
+
+test('Philter rejecting the set names the policy in the withheld result and dropped prompt', async ($, on) => {
+  setup(on, { files: { '/w/acme/.philter': 'acme\n', ['/w/acme' + GIT]: '' }, policies: ['set-acme'], redactError: true })
+  await start($, '/w/acme')
+  const res = await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(res.deny).toContain('Philter rejected policy set-acme')
+  expect(res.deny).toContain('sync-policy.sh')
+  const p = await $.prompt.submit({ text: 'hello there', wait: false, origin: { kind: 'composer' } })
+  expect((p as { drop: string }).drop).toContain('Philter rejected policy set-acme')
+})
+
+test('with no policy set, an error still says Philter could not be reached', async ($, on) => {
+  setup(on, { files: {}, redactError: true })
+  await start($, '/w/none')
+  const res = await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(res.deny).toContain('could not be reached')
 })
 
 test('accepts a list_policies object holding a list', async ($, on) => {
