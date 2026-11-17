@@ -25,8 +25,8 @@ else
 fi
 
 set -a; . ./.env; set +a
-mcp_url="http://127.0.0.1:${PHILTER_MCP_HOST_PORT:-18000}/mcp"
-api_url="https://127.0.0.1:${PHILTER_API_HOST_PORT:-18443}"
+mcp_url="http://127.0.0.1:${PHILTER_MCP_HOST_PORT:-27840}/mcp"
+api_url="https://127.0.0.1:${PHILTER_API_HOST_PORT:-27843}"
 
 echo "Starting containers…"
 docker compose up -d
