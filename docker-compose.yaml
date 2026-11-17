@@ -1,6 +1,9 @@
 # Philter + philter-mcp, both restarting automatically (including after reboot).
-#   MCP endpoint:  http://localhost:8000/mcp     MCP health: http://localhost:8000/health
-#   Philter API:   https://localhost:8080        (self-signed cert, curl -k)
+#   MCP endpoint:  http://127.0.0.1:18000/mcp    MCP health: http://127.0.0.1:18000/health
+#   Philter API:   https://127.0.0.1:18443       (self-signed cert, curl -k)
+# Host ports are uncommon on purpose: 8000/8080 collide with dev servers and SSH LocalForwards
+# (an IPv6 [::1]:8000 forward wins for "localhost"). Override with PHILTER_MCP_HOST_PORT /
+# PHILTER_API_HOST_PORT in .env. Use 127.0.0.1, not localhost, in URLs.
 # Secrets (PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY) live in ./.env (chmod 600).
 # Losing or changing PHILTER_ENCRYPTION_KEY makes the data in the philter-data volume unrecoverable.
 # Based on https://github.com/philterd/philter-mcp and https://github.com/philterd/philter
@@ -21,7 +24,7 @@ services:
     volumes:
       - philter-data:/opt/philter/data
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${PHILTER_API_HOST_PORT:-18443}:8080"
     restart: always
 
   philter-mcp:
@@ -39,7 +42,7 @@ services:
       PHILTER_MCP_HOST: 0.0.0.0
       PHILTER_MCP_PORT: "8000"
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${PHILTER_MCP_HOST_PORT:-18000}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s

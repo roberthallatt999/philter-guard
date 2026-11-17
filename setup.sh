@@ -24,6 +24,10 @@ else
   echo "Keeping existing .env."
 fi
 
+set -a; . ./.env; set +a
+mcp_url="http://127.0.0.1:${PHILTER_MCP_HOST_PORT:-18000}/mcp"
+api_url="https://127.0.0.1:${PHILTER_API_HOST_PORT:-18443}"
+
 echo "Starting containers…"
 docker compose up -d
 
@@ -35,22 +39,24 @@ wait_for() { # url, label
   done
   echo; echo "$2 didn't come up. Check: docker compose logs"; exit 1
 }
-wait_for https://localhost:8080/api/health "Philter (can take a minute on Apple Silicon)"
-wait_for http://localhost:8000/health      "philter-mcp"
+wait_for "$api_url/api/health" "Philter (can take a minute on Apple Silicon)"
+wait_for "${mcp_url%/mcp}/health" "philter-mcp"
 
 echo "Uploading policy…"
 ./sync-policy.sh
 
 if command -v claude >/dev/null; then
-  if claude mcp get philter >/dev/null 2>&1; then
-    echo "Claude Code already has the philter MCP server."
+  current=$(claude mcp get philter 2>/dev/null </dev/null || true)
+  if [[ "$current" == *"$mcp_url"* ]]; then
+    echo "Claude Code already has the philter MCP server at $mcp_url."
   else
-    claude mcp add --transport http --scope user philter http://localhost:8000/mcp
-    echo "Added the philter MCP server to Claude Code (user scope)."
+    [[ -n "$current" ]] && claude mcp remove --scope user philter </dev/null >/dev/null 2>&1 || true
+    claude mcp add --transport http --scope user philter "$mcp_url" </dev/null
+    echo "Registered the philter MCP server with Claude Code at $mcp_url (user scope)."
   fi
 else
   echo "Claude Code not found. Later, run:"
-  echo "  claude mcp add --transport http --scope user philter http://localhost:8000/mcp"
+  echo "  claude mcp add --transport http --scope user philter $mcp_url"
 fi
 
 cat <<'EOF'

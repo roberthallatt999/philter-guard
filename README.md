@@ -118,4 +118,4 @@ Run `bash tests/test_build.sh` to test the build itself. Commit the change so ev
 - Text already sent to Claude before the mod was on isn't covered.
 - Some inputs never go through Philter: CLAUDE.md, memory files, slash-command arguments, and images you choose to send.
 - Pattern-based detection over-redacts some ordinary numbers and misses unusual formats. Check placeholders in the output, and tune the policy when something slips through.
-- The MCP server's `status` tool fails against Philter 4.0.1, because it calls `/api/status`. Use `curl -sk https://localhost:8080/api/health` instead.
+- The MCP server's `status` tool fails against Philter 4.0.1, because it calls `/api/status`. Use `curl -sk https://127.0.0.1:18443/api/health` instead.

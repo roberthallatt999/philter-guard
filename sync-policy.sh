@@ -119,7 +119,7 @@ fi
 
 # ---- Upload ----
 set -a; . "$root/.env"; set +a
-api="https://localhost:8080/api/policies"
+api="https://127.0.0.1:${PHILTER_API_HOST_PORT:-18443}/api/policies"
 send() { # method, url, file
   curl -sk -o /dev/stderr -w '%{http_code}' -X "$1" "$2" \
     -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY" \
