@@ -13,7 +13,7 @@ name: philter-mcp
 
 services:
   philter:
-    image: philterd/philter:4.0.1
+    image: philterd/philter:4.0.2
     platform: linux/amd64          # only amd64 is published; runs under emulation on Apple Silicon
     container_name: philter
     environment:
