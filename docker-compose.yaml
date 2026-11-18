@@ -28,7 +28,10 @@ services:
     restart: always
 
   philter-mcp:
-    image: philterd/philter-mcp:latest
+    # Built locally from ./philter-mcp-server (upstream philter-mcp + Philter 4.x fixes;
+    # see philter-mcp-server/LOCAL-FIXES.md). Was: image: philterd/philter-mcp:latest
+    build: ./philter-mcp-server
+    image: philter-mcp-local
     container_name: philter-mcp
     depends_on:
       - philter

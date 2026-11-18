@@ -1,0 +1,138 @@
+diff --git a/src/philter_mcp/client.py b/src/philter_mcp/client.py
+index 7f0e594..ddb1914 100644
+--- a/src/philter_mcp/client.py
++++ b/src/philter_mcp/client.py
+@@ -7,7 +7,8 @@ https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.jso
+ - POST /api/explain          filter text and return a detailed explanation
+ - GET  /api/policies         list policy names
+ - GET  /api/policies/{name}  get a policy's JSON definition
+-- GET  /api/status           status of the Philter instance (also /api/health)
++- GET  /api/health           status of the Philter instance (4.x; falls back to /api/status)
++- GET/POST /api/contexts     look up / create redaction contexts (created on first use)
+ 
+ Redaction goes through /api/explain (not /api/filter) so the tools can return a
+ report of what was redacted alongside the redacted text.
+@@ -64,6 +65,10 @@ class PhilterClient:
+         )
+         self.timeout = timeout
+         self._transport = transport
++        # Contexts known to exist on the Philter instance. Philter 4.x rejects
++        # /api/explain with 400 for a context that hasn't been created, so
++        # explain() creates missing contexts on first use and caches the name.
++        self._known_contexts: set[str] = {"default"}
+ 
+     def _headers(self, content_type: Optional[str] = None) -> dict[str, str]:
+         headers: dict[str, str] = {}
+@@ -113,6 +118,8 @@ class PhilterClient:
+         if filename:
+             params["filename"] = filename
+         async with self._client() as client:
++            if context:
++                await self._ensure_context(client, context)
+             try:
+                 resp = await client.post(
+                     "/api/explain",
+@@ -125,6 +132,27 @@ class PhilterClient:
+             except httpx.HTTPError as exc:
+                 raise PhilterError(f"Philter explain request failed: {exc}") from exc
+ 
++    async def _ensure_context(self, client: httpx.AsyncClient, name: str) -> None:
++        """Create the context ``name`` on Philter if it does not exist yet."""
++        if name in self._known_contexts:
++            return
++        try:
++            resp = await client.get(f"/api/contexts/{name}", headers=self._headers())
++            if resp.status_code == 404:
++                resp = await client.post(
++                    "/api/contexts",
++                    json={"name": name},
++                    headers=self._headers("application/json"),
++                )
++                # 409 means it already exists (e.g. created concurrently).
++                if resp.status_code != 409:
++                    resp.raise_for_status()
++            else:
++                resp.raise_for_status()
++        except httpx.HTTPError as exc:
++            raise PhilterError(f"Philter context setup for '{name}' failed: {exc}") from exc
++        self._known_contexts.add(name)
++
+     async def policies(self) -> Any:
+         """Return the list of policy names available on the Philter instance."""
+         async with self._client() as client:
+@@ -149,7 +177,10 @@ class PhilterClient:
+         """Return the Philter instance status (JSON when available, else text)."""
+         async with self._client() as client:
+             try:
+-                resp = await client.get("/api/status", headers=self._headers())
++                # Philter 4.x serves health at /api/health; older releases used /api/status.
++                resp = await client.get("/api/health", headers=self._headers())
++                if resp.status_code == 404:
++                    resp = await client.get("/api/status", headers=self._headers())
+                 resp.raise_for_status()
+             except httpx.HTTPError as exc:
+                 raise PhilterError(f"Philter status request failed: {exc}") from exc
+diff --git a/tests/test_philter_mcp.py b/tests/test_philter_mcp.py
+index d1327ec..da4bd41 100644
+--- a/tests/test_philter_mcp.py
++++ b/tests/test_philter_mcp.py
+@@ -162,3 +162,59 @@ def test_status_falls_back_to_text():
+ 
+     client = PhilterClient(base_url="http://philter.test", transport=httpx.MockTransport(handler))
+     assert asyncio.run(client.status()) == {"status": "HEALTHY"}
++
++
++# --- Philter 4.x: /api/health and contexts created on first use ---------------
++
++def test_status_uses_health_endpoint_on_philter_4():
++    seen = []
++
++    def handler(request: httpx.Request) -> httpx.Response:
++        seen.append((request.method, request.url.path))
++        if request.url.path == "/api/health":
++            return httpx.Response(200, json={"status": "UP", "applicationVersion": "4.0.1"})
++        return httpx.Response(404)
++
++    client = PhilterClient(base_url="http://philter.test", transport=httpx.MockTransport(handler))
++    assert asyncio.run(client.status())["status"] == "UP"
++    assert seen == [("GET", "/api/health")]
++
++
++def test_explain_creates_missing_context_once():
++    created = []
++    contexts = {"default"}
++
++    def handler(request: httpx.Request) -> httpx.Response:
++        path = request.url.path
++        if path.startswith("/api/contexts/"):
++            name = path.rsplit("/", 1)[1]
++            return httpx.Response(200 if name in contexts else 404, json={})
++        if path == "/api/contexts" and request.method == "POST":
++            import json as _json
++            name = _json.loads(request.content)["name"]
++            contexts.add(name)
++            created.append(name)
++            return httpx.Response(201, json={"message": "Context created."})
++        if path == "/api/explain":
++            if request.url.params.get("c") not in contexts:
++                return httpx.Response(400)
++            return httpx.Response(200, json=EXPLAIN_RESPONSE)
++        return httpx.Response(404)
++
++    client = PhilterClient(base_url="http://philter.test", transport=httpx.MockTransport(handler))
++    asyncio.run(client.explain("hi", context="demo"))
++    asyncio.run(client.explain("hi", context="demo"))
++    asyncio.run(client.explain("hi", context="default"))
++    assert created == ["demo"]
++
++
++def test_explain_context_conflict_is_ok():
++    def handler(request: httpx.Request) -> httpx.Response:
++        if request.url.path.startswith("/api/contexts/"):
++            return httpx.Response(404)
++        if request.url.path == "/api/contexts":
++            return httpx.Response(409, json={"reason": "context_exists"})
++        return httpx.Response(200, json=EXPLAIN_RESPONSE)
++
++    client = PhilterClient(base_url="http://philter.test", transport=httpx.MockTransport(handler))
++    assert asyncio.run(client.explain("hi", context="race"))["documentId"]
