@@ -519,6 +519,28 @@
           "redactionFormat": "{{{REDACTED-secret-gcp-key-id}}}"
         }
       ]
+    },
+    {
+      "classification": "secret-deploy-hook",
+      "pattern": "https://(?:api\\.cloudflare\\.com/client/v4/pages/webhooks/deploy_hooks/[A-Za-z0-9-]{20,}|api\\.netlify\\.com/build_hooks/[0-9a-f]{24}|api\\.vercel\\.com/v1/integrations/deploy/prj_[A-Za-z0-9]{10,}/[A-Za-z0-9]{8,})",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-deploy-hook}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-sanity-token",
+      "pattern": "\\bsk[A-Za-z0-9]{100,}(?![A-Za-z0-9_])",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-sanity-token}}}"
+        }
+      ]
     }
   ]
 }

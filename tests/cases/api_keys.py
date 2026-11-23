@@ -88,6 +88,10 @@ COOKIE = "session=" + fake("", 32, ALNUM) + "; Path=/; HttpOnly"
 PGP_KIND = "PGP PRIVATE KEY BLOCK"
 PGP_BLOCK = f"{DASHES}BEGIN {PGP_KIND}{DASHES}\n\n{PEM_LINE}\n{DASHES}END {PGP_KIND}{DASHES}"
 
+CF_HOOK = "https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/" + fake("", 8, HEX) + "-" + fake("", 4, HEX) + "-" + fake("", 4, HEX) + "-" + fake("", 4, HEX) + "-" + fake("", 12, HEX)
+NETLIFY_HOOK = "https://api.netlify.com/build_hooks/" + fake("", 24, HEX)
+VERCEL_HOOK = "https://api.vercel.com/v1/integrations/deploy/prj_" + fake("", 28, ALNUM) + "/" + fake("", 10, ALNUM)
+
 CASES = [
     # --- must catch, one per form
     vendor("secret-aws-access-key", fake("AKIA", 16, UPPER)),
@@ -230,4 +234,11 @@ CASES = [
     ("secret-saas-token", fake("sb" + "p_", 40, HEX) + "-prod", fake("sb" + "p_", 40, HEX)),
     ("secret-saas-token", fake("nf" + "p_", 36, ALNUM) + "-x", fake("nf" + "p_", 36, ALNUM)),
     ("secret-saas-token", fake("nt" + "n_", 46, ALNUM) + "-x", fake("nt" + "n_", 46, ALNUM)),
+    # --- deploy hooks (anyone with the URL can trigger a production build) and bare Sanity tokens
+    ("secret-deploy-hook", "CLOUDFLARE_PRODUCTION_" + "HOOK=" + CF_HOOK, CF_HOOK),
+    ("secret-deploy-hook", "curl -X POST " + NETLIFY_HOOK, NETLIFY_HOOK),
+    ("secret-deploy-hook", VERCEL_HOOK, VERCEL_HOOK),
+    ("secret-deploy-hook", "docs: https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/{id}", None),
+    ("secret-sanity-token", "Unauthorized: " + fake("s" + "k", 180, ALNUM) + " is invalid", fake("s" + "k", 180, ALNUM)),
+    ("secret-sanity-token", "sk" + fake("", 40, ALNUM), None),
 ]

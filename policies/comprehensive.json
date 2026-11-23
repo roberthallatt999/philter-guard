@@ -9,7 +9,8 @@
   "ignoredPatterns": [
     { "name": "file-paths",      "pattern": "(?:~|\\.{1,2})?(?:/[\\w.@+-]+){2,}/?" },
     { "name": "version-numbers", "pattern": "\\bv?(?!(?:1\\.)?\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?!\\w|\\.\\w))\\d+\\.\\d+\\.\\d+(?:[-+.][\\w.]+)?\\b" },
-    { "name": "log-timestamps",  "pattern": "\\b\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(?::\\d{2}(?:[.,]\\d+)?)?(?:Z|[+-]\\d{2}:?\\d{2})?\\b" }
+    { "name": "log-timestamps",  "pattern": "\\b\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(?::\\d{2}(?:[.,]\\d+)?)?(?:Z|[+-]\\d{2}:?\\d{2})?\\b" },
+    { "name": "http-cache-age",  "pattern": "(?i)^(?:age:[ \\t]*|age=)(?:\\d{4,}|[2-9]\\d{2}|1[5-9]\\d)$" }
   ],
   "identifiers": {
     "person": {
