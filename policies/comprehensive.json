@@ -2,13 +2,13 @@
   "ignored": [
     { "name": "tool-and-product-names", "caseSensitive": false,
       "terms": ["Philter", "Claude", "Claude Code", "Anthropic", "OrbStack", "Docker", "GitHub", "Cloudflare", "Context7",
-                "DDEV", "Herd", "Laravel Herd", "Valet", "Laravel Forge", "Forge", "Cloudways", "Codex", "Enclave", "Eclipse Enclave",
-                "Debian", "trixie", "Bash", "Composer", "Wrangler", "Vite", "Astro", "ExpressionEngine", "Craft CMS", "WordPress",
+                "DDEV", "Laravel Herd", "Laravel Forge", "Cloudways", "Codex", "Enclave", "Eclipse Enclave",
+                "Debian", "Bash", "Composer", "Wrangler", "Vite", "ExpressionEngine", "Craft CMS", "WordPress",
                 "Tailwind", "gitleaks", "1Password", "CONTRIBUTING", "README"] }
   ],
   "ignoredPatterns": [
     { "name": "file-paths",      "pattern": "(?:~|\\.{1,2})?(?:/[\\w.@+-]+){2,}/?" },
-    { "name": "version-numbers", "pattern": "\\bv?(?!\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?![\\w.]))\\d+\\.\\d+\\.\\d+(?:[-+.][\\w.]+)?\\b" },
+    { "name": "version-numbers", "pattern": "\\bv?(?!(?:1\\.)?\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?!\\w|\\.\\w))\\d+\\.\\d+\\.\\d+(?:[-+.][\\w.]+)?\\b" },
     { "name": "log-timestamps",  "pattern": "\\b\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(?::\\d{2}(?:[.,]\\d+)?)?(?:Z|[+-]\\d{2}:?\\d{2})?\\b" }
   ],
   "identifiers": {
@@ -142,7 +142,7 @@
       },
       {
         "classification": "phone-number-dotted",
-        "pattern": "(?<![\\w.])\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?![\\w.])",
+        "pattern": "(?<![\\w.])(?:\\+?1[.\\s-])?\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?!\\w|\\.\\w)",
         "caseSensitive": true,
         "identifierFilterStrategies": [{ "strategy": "REDACT", "redactionFormat": "{{{REDACTED-phone-number}}}" }]
       }

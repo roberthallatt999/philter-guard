@@ -66,6 +66,8 @@ CASES = [
     # dotted phone numbers (Philter's phone filter misses these)
     ("phone-number-dotted", "Call 613.555.0199 today", "613.555.0199"),
     ("phone-number-dotted", "or (613).555.0199", "(613).555.0199"),
+    ("phone-number-dotted", "Call 613.555.0199.", "613.555.0199"),
+    ("phone-number-dotted", "Call +1.613.555.0199 now", "+1.613.555.0199"),
     ("phone-number-dotted", "version 1.555.0199.2", None),
     ("phone-number-dotted", "host 192.168.100.1", None),
 ]
