@@ -205,6 +205,320 @@
           "redactionFormat": "{{{REDACTED-secret-define-call}}}"
         }
       ]
+    },
+    {
+      "classification": "secret-gitlab-token",
+      "pattern": "\\bgl(?:pat|ptt|dt|rt|soat|cbt)-[A-Za-z0-9_-]{20,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-gitlab-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-1password-token",
+      "pattern": "\\bops_[A-Za-z0-9_-]{40,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-1password-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-1password-secret-key",
+      "pattern": "\\bA3-[A-Z0-9]{6}-[A-Z0-9]{5,6}(?:-[A-Z0-9]{5}){4}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-1password-secret-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-sendgrid-key",
+      "pattern": "\\bSG\\.[A-Za-z0-9_-]{22}\\.[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-sendgrid-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-mailgun-key",
+      "pattern": "\\bkey-[0-9a-f]{32}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-mailgun-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-twilio-key",
+      "pattern": "\\bSK[0-9a-f]{32}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-twilio-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-shopify-token",
+      "pattern": "\\bshp(?:at|ca|pa|ss)_[a-fA-F0-9]{32}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-shopify-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-digitalocean-token",
+      "pattern": "\\bdo[opr]_v1_[a-f0-9]{64}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-digitalocean-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-huggingface-token",
+      "pattern": "\\bhf_[A-Za-z]{34}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-huggingface-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-stripe-webhook-secret",
+      "pattern": "\\bwhsec_[A-Za-z0-9]{32,}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-stripe-webhook-secret}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-square-token",
+      "pattern": "\\b(?:EAAA[A-Za-z0-9_-]{60}|sq0(?:atp|csp)-[A-Za-z0-9_-]{22,43})(?![A-Za-z0-9_-])",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-square-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-vault-token",
+      "pattern": "\\bhv[sbr]\\.[A-Za-z0-9_-]{24,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-vault-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-postman-key",
+      "pattern": "\\bPMAK-[0-9a-f]{24}-[0-9a-f]{34}\\b",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-postman-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-docker-token",
+      "pattern": "\\bdckr_pat_[A-Za-z0-9_-]{27,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-docker-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-pypi-token",
+      "pattern": "\\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_-]{50,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-pypi-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-sentry-token",
+      "pattern": "\\bsntry[su]_[A-Za-z0-9_=+/.-]{40,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-sentry-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-mapbox-secret",
+      "pattern": "\\bsk\\.eyJ[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-mapbox-secret}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-telegram-bot-token",
+      "pattern": "\\b\\d{8,10}:AA[A-Za-z0-9_-]{33}(?![A-Za-z0-9_-])",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-telegram-bot-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-atlassian-token",
+      "pattern": "\\bATATT3[A-Za-z0-9_=-]{180,}",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-atlassian-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-saas-token",
+      "pattern": "\\b(?:ntn_[A-Za-z0-9]{40,}(?![A-Za-z0-9_])|lin_api_[A-Za-z0-9]{40}(?![A-Za-z0-9_])|sbp_[a-f0-9]{40}(?![A-Za-z0-9_])|nfp_[A-Za-z0-9]{36}(?![A-Za-z0-9_])|dp\\.(?:st|ct|pt|sa)\\.[A-Za-z0-9_-]{40,}(?![A-Za-z0-9_-]))",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-saas-token}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-webhook-url",
+      "pattern": "https://(?:hooks\\.slack\\.com/(?:services|workflows|triggers)/[A-Za-z0-9/_-]{20,}|(?:ptb\\.|canary\\.)?discord(?:app)?\\.com/api/webhooks/\\d+/[A-Za-z0-9_-]{20,}|[A-Za-z0-9.-]+\\.webhook\\.office\\.com/[A-Za-z0-9/\\x40_-]{20,})",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-webhook-url}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-signed-url",
+      "pattern": "[?&](?:X-Amz-Signature|Signature|sig)=([A-Za-z0-9%+/=_-]{20,})",
+      "caseSensitive": true,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-signed-url}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-azure-storage-key",
+      "pattern": "\\b(?:AccountKey|SharedAccessKey)=([A-Za-z0-9+/]{40,}={0,2})",
+      "caseSensitive": true,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-azure-storage-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-cookie-header",
+      "pattern": "(?i)\\b(?:set-)?cookie:[ \\t]*([^\\s\\\"'=;]+=[^\\r\\n\\\"']{6,})",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-cookie-header}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-curl-basic-auth",
+      "pattern": "(?:\\s-u|\\s--user)[ \\t]+['\\\"]?[^\\s:'\\\"$]+:([^\\s'\\\"$][^\\s'\\\"]{3,})",
+      "caseSensitive": true,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-curl-basic-auth}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-npm-auth",
+      "pattern": "(?i)(?:_authToken|_auth|_password)\\s*=\\s*([^\\s$\\\"'][^\\s\\\"']{7,})",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-npm-auth}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-pgp-private-key",
+      "pattern": "-----BEGIN PGP PRIVATE KEY BLOCK-----[\\s\\S]*?(?:-----END PGP PRIVATE KEY BLOCK-----|$)",
+      "caseSensitive": true,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-pgp-private-key}}}"
+        }
+      ]
+    },
+    {
+      "classification": "secret-gcp-key-id",
+      "pattern": "\\\"private_key_id\\\"\\s*:\\s*\\\"([0-9a-f]{40})\\\"",
+      "caseSensitive": true,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-secret-gcp-key-id}}}"
+        }
+      ]
     }
   ]
 }

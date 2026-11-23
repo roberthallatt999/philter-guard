@@ -63,6 +63,11 @@ CASES = [
     ("health-facility", "seen at Toronto General Hospital", "Toronto General Hospital"),
     ("health-facility", "the Hospital for Sick Children and Centre for Addiction and Mental Health",
      "Centre for Addiction and Mental Health"),
+    # dotted phone numbers (Philter's phone filter misses these)
+    ("phone-number-dotted", "Call 613.555.0199 today", "613.555.0199"),
+    ("phone-number-dotted", "or (613).555.0199", "(613).555.0199"),
+    ("phone-number-dotted", "version 1.555.0199.2", None),
+    ("phone-number-dotted", "host 192.168.100.1", None),
 ]
 
 # Per-piece cases: tests/cases/<piece>.py (hyphens become underscores) exports CASES, the

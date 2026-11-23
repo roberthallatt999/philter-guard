@@ -74,6 +74,20 @@ def vendor(cls, value):
     return (cls, f"value {value} here", value)
 
 
+
+# --- structured fakes for the 2026-11 vendor rules
+OP_SK = "A3-" + "-".join([fake("", 6, UPPER), fake("", 6, UPPER)] + [fake("", 5, UPPER)] * 4)
+SENDGRID = "S" + "G." + fake("", 22, URLSAFE) + "." + fake("", 43, URLSAFE)
+POSTMAN = "PM" + "AK-" + fake("", 24, HEX) + "-" + fake("", 34, HEX)
+MAPBOX = "s" + "k.eyJ" + fake("", 30, ALNUM) + "." + fake("", 22, ALNUM)
+TELEGRAM = "123456789:A" + "A" + fake("", 33, URLSAFE)
+SLACK_HOOK = "https://hooks.slack.com/services/" + fake("T", 8, UPPER) + "/" + fake("B", 8, UPPER) + "/" + fake("", 24, ALNUM)
+DISCORD_HOOK = "https://discord.com/api/webhooks/123456789012345678/" + fake("", 60, URLSAFE)
+AZ_KEY = fake("", 86, ALNUM + "+/") + "=="
+COOKIE = "session=" + fake("", 32, ALNUM) + "; Path=/; HttpOnly"
+PGP_KIND = "PGP PRIVATE KEY BLOCK"
+PGP_BLOCK = f"{DASHES}BEGIN {PGP_KIND}{DASHES}\n\n{PEM_LINE}\n{DASHES}END {PGP_KIND}{DASHES}"
+
 CASES = [
     # --- must catch, one per form
     vendor("secret-aws-access-key", fake("AKIA", 16, UPPER)),
@@ -165,4 +179,55 @@ CASES = [
     ("secret-define-call", define(L_WP_PASSWORD, SHORT), None),
     ("secret-define-call", define(L_WP_KEY, SHORT), None),
     ("secret-define-call", "define('WP_" + "DEBUG', true);", None),
+    # --- vendor tokens added 2026-11 (values built at runtime)
+    ("secret-gitlab-token", "CI uses " + fake("glp" + "at-", 20, URLSAFE), fake("glp" + "at-", 20, URLSAFE)),
+    ("secret-gitlab-token", "see glpat-docs for details", None),
+    ("secret-1password-token", "OP_SERVICE_ACCOUNT_" + "TOKEN " + fake("op" + "s_", 60, URLSAFE), fake("op" + "s_", 60, URLSAFE)),
+    ("secret-1password-secret-key", "key " + OP_SK, OP_SK),
+    ("secret-1password-secret-key", "model A3-turbo", None),
+    ("secret-sendgrid-key", SENDGRID, SENDGRID),
+    ("secret-mailgun-key", "auth " + fake("ke" + "y-", 32, HEX), fake("ke" + "y-", 32, HEX)),
+    ("secret-mailgun-key", "the key-value store", None),
+    ("secret-twilio-key", fake("S" + "K", 32, HEX), fake("S" + "K", 32, HEX)),
+    ("secret-shopify-token", fake("shp" + "at_", 32, HEX), fake("shp" + "at_", 32, HEX)),
+    ("secret-digitalocean-token", fake("do" + "p_v1_", 64, HEX), fake("do" + "p_v1_", 64, HEX)),
+    ("secret-huggingface-token", fake("h" + "f_", 34, "aBcDeFgHjK"), fake("h" + "f_", 34, "aBcDeFgHjK")),
+    ("secret-stripe-webhook-secret", fake("wh" + "sec_", 32, ALNUM), fake("wh" + "sec_", 32, ALNUM)),
+    ("secret-square-token", fake("EA" + "AA", 60, URLSAFE), fake("EA" + "AA", 60, URLSAFE)),
+    ("secret-vault-token", "VAULT_" + "TOKEN " + fake("hv" + "s.", 30, URLSAFE), fake("hv" + "s.", 30, URLSAFE)),
+    ("secret-postman-key", POSTMAN, POSTMAN),
+    ("secret-docker-token", fake("dckr" + "_pat_", 30, URLSAFE), fake("dckr" + "_pat_", 30, URLSAFE)),
+    ("secret-pypi-token", fake("py" + "pi-AgEIcHlwaS5vcmc", 60, URLSAFE), fake("py" + "pi-AgEIcHlwaS5vcmc", 60, URLSAFE)),
+    ("secret-sentry-token", fake("sntr" + "ys_", 60, ALNUM), fake("sntr" + "ys_", 60, ALNUM)),
+    ("secret-mapbox-secret", MAPBOX, MAPBOX),
+    ("secret-mapbox-secret", "public " + "pk.eyJ" + fake("", 30, ALNUM) + "." + fake("", 22, ALNUM), None),
+    ("secret-telegram-bot-token", TELEGRAM, TELEGRAM),
+    ("secret-atlassian-token", fake("ATA" + "TT3", 190, URLSAFE), fake("ATA" + "TT3", 190, URLSAFE)),
+    ("secret-saas-token", fake("nt" + "n_", 46, ALNUM), fake("nt" + "n_", 46, ALNUM)),
+    ("secret-saas-token", fake("sb" + "p_", 40, HEX), fake("sb" + "p_", 40, HEX)),
+    # --- credentials inside URLs, headers, commands and key files
+    ("secret-webhook-url", "post to " + SLACK_HOOK, SLACK_HOOK),
+    ("secret-webhook-url", "post to " + DISCORD_HOOK, DISCORD_HOOK),
+    ("secret-webhook-url", "docs at https://api.slack.com/messaging/webhooks", None),
+    ("secret-signed-url", "GET https://b.s3.amazonaws.com/f.pdf?X-Amz-Expires=300&X-Amz-" + "Signature=" + fake("", 64, HEX), fake("", 64, HEX)),
+    ("secret-azure-storage-key", "DefaultEndpointsProtocol=https;AccountName=app;Account" + "Key=" + AZ_KEY + ";", AZ_KEY),
+    ("secret-cookie-header", "< Set-" + "Cookie: " + COOKIE, COOKIE),
+    ("secret-cookie-header", "-H 'Cook" + "ie: " + COOKIE + "'", COOKIE),
+    ("secret-cookie-header", "a cookie: chocolate", None),
+    ("secret-curl-basic-auth", "curl -u " + "admin" + ":" + PW + " https://x.test", PW),
+    ("secret-curl-basic-auth", "curl -u admin:$API_PASS https://x.test", None),
+    ("secret-npm-auth", "//registry.npmjs.org/:_auth" + "Token=" + fake("", 36, ALNUM), fake("", 36, ALNUM)),
+    ("secret-npm-auth", "//registry.npmjs.org/:_auth" + "Token=${NPM_TOKEN}", None),
+    ("secret-pgp-private-key", PGP_BLOCK, PGP_BLOCK),
+    ("secret-gcp-key-id", '{"private_key' + '_id": "' + fake("", 40, HEX) + '"}', fake("", 40, HEX)),
+    # --- tokens whose last character is '-' (a trailing \\b would miss them)
+    ("secret-sendgrid-key", SENDGRID[:-1] + "- next", SENDGRID[:-1] + "-"),
+    ("secret-square-token", fake("EA" + "AA", 59, URLSAFE) + "- next", fake("EA" + "AA", 59, URLSAFE) + "-"),
+    ("secret-telegram-bot-token", TELEGRAM[:-1] + "-", TELEGRAM[:-1] + "-"),
+    ("secret-saas-token", fake("dp" + ".st.", 43, URLSAFE) + "- next", fake("dp" + ".st.", 43, URLSAFE) + "-"),
+    # --- fixed-alphabet tokens followed by '-' must still be caught
+    ("secret-saas-token", fake("lin" + "_api_", 40, ALNUM) + "-v2", fake("lin" + "_api_", 40, ALNUM)),
+    ("secret-saas-token", fake("sb" + "p_", 40, HEX) + "-prod", fake("sb" + "p_", 40, HEX)),
+    ("secret-saas-token", fake("nf" + "p_", 36, ALNUM) + "-x", fake("nf" + "p_", 36, ALNUM)),
+    ("secret-saas-token", fake("nt" + "n_", 46, ALNUM) + "-x", fake("nt" + "n_", 46, ALNUM)),
 ]
