@@ -87,6 +87,9 @@ SPAN_CASES = [
     ("streetAddress", "0\n  PASS  dry run", True), ("streetAddress", "0 PASS dry run", True),
     ("streetAddress", "42 Wallaby Way", False), ("streetAddress", "123 Main Street", False),
     ("streetAddress", "100 Queen St W", False),
+    # a real address split over lines must still be redacted (no blanket cross-line ignore)
+    ("streetAddress", "742\nEvergreen Terrace", False), ("streetAddress", "742 Evergreen Terrace\nSpringfield", False),
+    ("streetAddress", "0123 Main St", False),
     # ipAddress — observed spans from Perl, PHP, GitHub workflow commands
     ("ipAddress", "::", True), ("ipAddress", "e::", True), ("ipAddress", "::add", True),
     ("ipAddress", "a::b", True), ("ipAddress", "::ba", True), ("ipAddress", "1::", True),

@@ -38,7 +38,6 @@
     "phoneNumberExtension": { "phoneNumberExtensionFilterStrategies": [{ "strategy": "REDACT" }] },
     "streetAddress": {
       "ignoredPatterns": [
-        {"name": "address-across-lines", "pattern": "(?s)[^\\r\\n]{0,100}[\\r\\n].{0,200}"},
         {"name": "address-number-zero",  "pattern": "(?s)0{1,4}(?:[\\s,].{0,200})?"}
       ],
       "streetAddressFilterStrategies": [{ "strategy": "REDACT" }]
