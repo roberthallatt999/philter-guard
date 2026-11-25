@@ -37,12 +37,35 @@ test('a prompt is not sent when Philter is down', async ($, on) => {
   expect('drop' in res).toBe(true)
 })
 
-test('a tool result reaches the model redacted', async ($, on) => {
+test('a redacted Bash result reaches the model as a normal result, not a deny', async ($, on) => {
+  on('mcp.call', () => philterSays('Patient {{{REDACTED-name}}}', 1))
+  on('ui.status', () => ({ value: undefined }))
+  on('tool.call', () => ({ result: { stdout: 'Patient Marie Tremblay', stderr: '', interrupted: false }, text: 'Patient Marie Tremblay' }))
+
+  const res = await $.tool.call({ tool: 'Bash', command: 'cat notes.txt' })
+  expect(res.deny).toBe(undefined)
+  expect((res.result as { stdout: string }).stdout).toBe('Patient {{{REDACTED-name}}}\n[Philter redacted 1 item]')
+  expect((res.result as { stderr: string }).stderr).toBe('')
+})
+
+test('a Bash result with a path to its raw output is still withheld', async ($, on) => {
+  on('mcp.call', () => philterSays('Patient {{{REDACTED-name}}}', 1))
+  on('ui.status', () => ({ value: undefined }))
+  on('tool.call', () => ({
+    result: { stdout: 'Patient Marie Tremblay', stderr: '', interrupted: false, persistedOutputPath: '/tmp/out.txt' },
+    text: 'Patient Marie Tremblay',
+  }))
+
+  const res = await $.tool.call({ tool: 'Bash', command: 'cat notes.txt' })
+  expect(res.deny).toBe('[Philter redacted 1 item]\nPatient {{{REDACTED-name}}}')
+})
+
+test('a result with an unknown shape is withheld with the redacted text', async ($, on) => {
   on('mcp.call', () => philterSays('Patient {{{REDACTED-name}}}', 1))
   on('ui.status', () => ({ value: undefined }))
   on('tool.call', () => ({ result: {}, text: 'Patient Marie Tremblay' }))
 
-  const res = await $.tool.call({ tool: 'Bash', command: 'cat notes.txt' })
+  const res = await $.tool.call({ tool: 'WebFetch', url: 'https://example.com', prompt: 'x' })
   expect(res.deny).toBe('[Philter redacted 1 item]\nPatient {{{REDACTED-name}}}')
 })
 
@@ -328,4 +351,33 @@ test('/scrub reports base when there is no file', async ($, on) => {
   await start($, '/w/other')
   const res2 = await $.command.run({ command: 'scrub', args: '' })
   expect((res2 as { text: string }).text).toContain('Policy: base (comprehensive)')
+})
+
+// ---- code- policy for tool output ----
+
+test('tool output uses the code- variant when the server has it; prompts keep the prose policy', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['set-acme', 'code-set-acme'] })
+  on('prompt.submit', (_: unknown, e: { text: string }) => ({ text: e.text }))
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(redactArgs(w.calls).policy).toBe('code-set-acme')
+  await $.prompt.submit({ text: 'hello there', wait: false, origin: { kind: 'composer' } })
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
+})
+
+test('with no .philter, tool output uses code-comprehensive when listed', async ($, on) => {
+  const w = setup(on, { files: { ['/w/acme' + GIT]: '' }, policies: ['comprehensive', 'code-comprehensive'] })
+  on('prompt.submit', (_: unknown, e: { text: string }) => ({ text: e.text }))
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(redactArgs(w.calls).policy).toBe('code-comprehensive')
+  await $.prompt.submit({ text: 'hello there', wait: false, origin: { kind: 'composer' } })
+  expect('policy' in redactArgs(w.calls)).toBe(false)
+})
+
+test('a missing code- variant falls back to the prose policy', async ($, on) => {
+  const w = setup(on, { files: { '/w/acme/.philter': 'acme', ['/w/acme' + GIT]: '' }, policies: ['set-acme', 'code-comprehensive'] })
+  await start($, '/w/acme')
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(redactArgs(w.calls).policy).toBe('set-acme')
 })

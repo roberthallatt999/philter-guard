@@ -41,7 +41,8 @@ PW_DIGSLASH = fake("", 4, "1234") + "/" + fake("", 5, "aBdEf")
 SPACED = fake("", 6, "aBdEf") + " " + fake("", 6, "kLmNp")
 PUNCT =fake("", 4, "aBdE") + ";" + fake("", 4, "kLmN") + "," + fake("", 3, "pQr")
 BEARER =fake("", 30, ALNUM)
-JWT = ".".join([fake("eyJ", 20, URLSAFE), fake("", 24, URLSAFE), fake("", 24, URLSAFE)])
+# A real JWT: header and payload are both base64url JSON objects, so both start with eyJ.
+JWT = ".".join([fake("eyJ", 20, URLSAFE), fake("eyJ", 24, URLSAFE), fake("", 24, URLSAFE)])
 PEM_FULL = f"{PEM_BEGIN}\n{PEM_LINE}\n{PEM_LINE}\n{PEM_END}"
 PEM_TRUNC = f"{PEM_BEGIN}\n{PEM_LINE}\n{PEM_LINE}"
 SHA40 = fake("", 40, HEX)
@@ -242,3 +243,18 @@ CASES = [
     ("secret-sanity-token", "Unauthorized: " + fake("s" + "k", 180, ALNUM) + " is invalid", fake("s" + "k", 180, ALNUM)),
     ("secret-sanity-token", "sk" + fake("", 40, ALNUM), None),
 ]
+
+# The low-false-positive corpus's lines that must never match a secret- rule (paths, shell
+# expansions, docker mounts, placeholders, hyphenated words): kept here too, so test_patterns.py
+# guards them alongside the vendor cases.
+def _low_fp_lines():
+    import importlib.util
+    import pathlib
+    path = pathlib.Path(__file__).with_name("low_fp_corpus.py")
+    spec = importlib.util.spec_from_file_location("low_fp_corpus_for_api_keys", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.SECRET_FP
+
+
+CASES += [("secret-labelled-value", text, None) for text in _low_fp_lines()]

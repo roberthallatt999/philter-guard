@@ -6,7 +6,9 @@
 #   sets/<name>.json              one per client: { "include": ["piece", ...] }
 # Output: policy "comprehensive" (base + library/api-keys.json) and one policy "set-<name>"
 # per set file (base + library/api-keys.json + the set's pieces). api-keys is in every policy; no set
-# can opt out. Philter uses the new versions on the next request; no restart needed.
+# can opt out. With policies/code-overlay.json, each policy X also gets "code-X": the same rules
+# minus the overlay's shape-only filters, used by the scrub plugin for tool output.
+# Philter uses the new versions on the next request; no restart needed.
 #
 #   ./sync-policy.sh                  validate, build, show a summary, upload
 #   ./sync-policy.sh --dry-run        validate, build and show the summary only
@@ -38,6 +40,16 @@ err() { errors+=("$1"); }
 [[ -f "$base" ]] && { jq -e . "$base" >/dev/null 2>&1 || err "policies/comprehensive.json is not valid JSON"; } \
   || err "policies/comprehensive.json not found"
 [[ -f "$root/library/$always.json" ]] || err "library/$always.json not found"
+overlay="$root/policies/code-overlay.json"
+if [[ -f "$overlay" ]] && ! jq -e '
+    (.disableBuiltins // []) | type == "array" and all(type == "string")' "$overlay" >/dev/null 2>&1; then
+  err "policies/code-overlay.json: not valid JSON, or \"disableBuiltins\" is not a list of filter names"
+elif [[ -f "$overlay" ]] && ! jq -e '
+    ((.dropIdentifierPatterns // []) | type == "array" and all(type == "string"))
+    and ((.addIdentifiers // []) | type == "array" and all(type == "object" and (.pattern | type == "string") and (.classification | type == "string")))
+    and ((.personThreshold // 0.5) | type == "number" and . > 0 and . <= 1)' "$overlay" >/dev/null 2>&1; then
+  err "policies/code-overlay.json: \"dropIdentifierPatterns\" must be a list of patterns and \"personThreshold\" a number in (0, 1]"
+fi
 
 pieces=()
 for f in "$root"/library/*.json; do
@@ -101,9 +113,27 @@ done
 # only select a "set-" policy, and every one of them is built from the base.
 names=(comprehensive)
 for s in ${sets[@]+"${sets[@]}"}; do names+=("set-$s"); done
+
+# The code- variant of each: built-in filters in disableBuiltins removed, custom identifiers
+# whose pattern is in dropIdentifierPatterns removed, addIdentifiers appended (labelled forms
+# of dropped shapes), and the name model's threshold raised.
+if [[ -f "$overlay" ]]; then
+  for n in "${names[@]}"; do
+    jq --slurpfile o "$overlay" '
+      ($o[0]) as $o
+      | reduce (($o.disableBuiltins // [])[]) as $k (.; del(.identifiers[$k]))
+      | .identifiers.identifiers |= map(select(.pattern as $p | any(($o.dropIdentifierPatterns // [])[]; . == $p) | not))
+      | .identifiers.identifiers += ($o.addIdentifiers // [])
+      | if ($o.personThreshold != null) and (.identifiers.person.phEyeConfiguration != null)
+        then .identifiers.person.phEyeConfiguration.threshold = $o.personThreshold else . end
+    ' "$built/$n.json" > "$built/code-$n.json"
+  done
+  code_names=(); for n in "${names[@]}"; do code_names+=("code-$n"); done
+  names+=("${code_names[@]}")
+fi
 echo "Library pieces: ${pieces[*]:-none}"
 for n in "${names[@]}"; do
-  printf '%-16s %s built-in filters, %s custom patterns, %s word lists\n' "$n:" \
+  printf '%-22s %s built-in filters, %s custom patterns, %s word lists\n' "$n:" \
     "$(jq '[.identifiers | keys[] | select(. != "identifiers" and . != "dictionaries")] | length' "$built/$n.json")" \
     "$(jq '.identifiers.identifiers | length' "$built/$n.json")" \
     "$(jq '.identifiers.dictionaries | length' "$built/$n.json")"
@@ -161,7 +191,7 @@ if listing=$(curl -sk -f "$api" -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API
   done <<<"$existing"
   selectable=(); other=()
   for n in ${stale[@]+"${stale[@]}"}; do
-    if [[ "$n" == set-* ]]; then selectable+=("$n"); else other+=("$n"); fi
+    if [[ "$n" == set-* || "$n" == code-set-* ]]; then selectable+=("$n"); else other+=("$n"); fi
   done
   [[ ${#selectable[@]} -gt 0 ]] && echo "Stale (not deleted, still selectable by .philter): ${selectable[*]}"
   [[ ${#other[@]} -gt 0 ]] && echo "Stale (not deleted): ${other[*]}"

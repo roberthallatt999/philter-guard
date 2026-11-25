@@ -70,6 +70,27 @@ check "dry run lists set-acme" grep -q 'set-acme' <<<"$log"
 check "dry run lists set-other" grep -q 'set-other' <<<"$log"
 check "dry run uploads nothing" grep -q 'nothing uploaded' <<<"$log"
 
+echo "code- variants (policies/code-overlay.json)"
+ov="$tmp/ov"; rm -rf "$ov" "$tmp/o3"; cp -R "$fixture" "$ov"; mkdir "$tmp/o3"
+base_pat=$(jq -r '.identifiers.identifiers[0].pattern' "$ov/policies/comprehensive.json")
+jq -n --arg p "$base_pat" '{_about: "test", disableBuiltins: ["emailAddress"], dropIdentifierPatterns: [$p], personThreshold: 0.92}' \
+  > "$ov/policies/code-overlay.json"
+"$sync" --root "$ov" --out "$tmp/o3" >"$tmp/log3" 2>&1; rc=$?
+check "overlay: exits 0" test $rc -eq 0
+check "overlay: six policies written" test "$(ls "$tmp/o3" | wc -l | tr -d ' ')" -eq 6
+check "overlay: code-comprehensive written" test -f "$tmp/o3/code-comprehensive.json"
+check "overlay: code-set-acme written" test -f "$tmp/o3/code-set-acme.json"
+check "overlay: the prose policy keeps the disabled filter" jq -e '.identifiers.emailAddress != null' "$tmp/o3/comprehensive.json"
+check "overlay: the code policy drops the disabled filter" jq -e '.identifiers.emailAddress == null' "$tmp/o3/code-comprehensive.json"
+check "overlay: the dropped pattern is gone from code-" test "$(count "$tmp/o3/code-set-acme.json" base-fixture)" -eq 0
+check "overlay: the dropped pattern stays in the prose set" test "$(count "$tmp/o3/set-acme.json" base-fixture)" -eq 1
+check "overlay: other rules stay in code-" test "$(count "$tmp/o3/code-set-acme.json" a-fixture)" -eq 1
+check "overlay: secrets stay in code-" test "$(count "$tmp/o3/code-comprehensive.json" secret-fixture)" -eq 1
+check "overlay: no person filter is added where there was none" jq -e '.identifiers.person == null' "$tmp/o3/code-comprehensive.json"
+check "overlay: no _about in built policies" test "$(grep -l '_about' "$tmp/o3"/*.json | wc -l | tr -d ' ')" -eq 0
+expect_fail "overlay with a bad list" 'echo "{\"disableBuiltins\": \"age\"}" > policies/code-overlay.json' code-overlay
+expect_fail "overlay with a bad threshold" 'echo "{\"personThreshold\": 5}" > policies/code-overlay.json' code-overlay
+
 echo "upload path (stub curl, dummy key file, no network)"
 # A fake root with a throwaway key file, built from parts so no literal protected file name
 # or key=value line sits in this script. The stub curl goes first on PATH.

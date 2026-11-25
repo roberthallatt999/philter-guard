@@ -31,7 +31,13 @@ type Scrubbed = { text: string; count: number }
 // there is no file or the set can't be used.
 const SET_NAME = /^[a-z0-9][a-z0-9-]*$/
 const SET_PREFIX = 'set-'
+// Tool output goes through the "code" variant of the same policy (code-comprehensive,
+// code-set-<name>), which sync-policy.sh builds without the shape-only filters that hit
+// hashes, UUIDs and build ids. Prompts keep the prose policy. Falls back to `policy` when
+// the server doesn't list the code variant (not synced yet, or the list can't be read).
+const CODE_PREFIX = 'code-'
 let policy: string | undefined
+let codePolicy: string | undefined
 let policyNote = ''
 
 export function parseSetName(text: string): string | null {
@@ -73,9 +79,9 @@ function findNames(v: unknown, depth: number): string[] | null {
 }
 
 // What a person sees when Philter can't be used: names the policy if one is active.
-const why = () =>
-  policy
-    ? `Philter rejected policy ${policy} (is it synced? run sync-policy.sh)`
+const why = (use: string | undefined = policy) =>
+  use
+    ? `Philter rejected policy ${use} (is it synced? run sync-policy.sh)`
     : 'Philter could not be reached'
 
 // null when the list can't be fetched or understood.
@@ -95,7 +101,15 @@ async function listPolicies($: EngineInterface): Promise<string[] | null> {
 
 async function resolvePolicy($: EngineInterface, cwd: string) {
   policy = undefined
+  codePolicy = undefined
   policyNote = ''
+  const names = await listPolicies($)
+  await resolveProsePolicy($, cwd, names)
+  const code = CODE_PREFIX + (policy ?? 'comprehensive')
+  codePolicy = names && names.includes(code) ? code : policy
+}
+
+async function resolveProsePolicy($: EngineInterface, cwd: string, names: string[] | null) {
   let name: string | null
   try {
     const file = await findPhilterFile($, cwd)
@@ -112,7 +126,6 @@ async function resolvePolicy($: EngineInterface, cwd: string) {
   // A repo can only select a policy that sync-policy.sh built, which always holds the
   // base rules: those are uploaded as set-<name>. The bare name is never sent.
   const server = SET_PREFIX + name
-  const names = await listPolicies($)
   if (names && !names.includes(server)) {
     policyNote = `⚠ policy "${name}" not found, using base`
     return
@@ -121,8 +134,8 @@ async function resolvePolicy($: EngineInterface, cwd: string) {
   policy = server
 }
 
-async function scrub($: EngineInterface, text: string): Promise<Scrubbed> {
-  const res = await $.mcp.call(SERVER, 'redact_text', policy ? { text, policy } : { text })
+async function scrub($: EngineInterface, text: string, use: string | undefined = policy): Promise<Scrubbed> {
+  const res = await $.mcp.call(SERVER, 'redact_text', use ? { text, policy: use } : { text })
   const block = res.content.find((b: { type: string }) => b.type === 'text') as { text?: string } | undefined
   if (res.isError || !block?.text) throw new Error('Philter returned no result')
   const body = JSON.parse(block.text) as { filtered_text?: string; redaction_count?: number; error?: string }
@@ -137,6 +150,24 @@ function showCount($: EngineInterface, added: number) {
       (policy ? ` · set ${policy.slice(SET_PREFIX.length)}` : '') +
       (policyNote ? ` · ${policyNote}` : ''),
   )
+}
+
+type Rec = Record<string, unknown>
+const isRec = (v: unknown): v is Rec => !!v && typeof v === 'object' && !Array.isArray(v)
+
+// Bash only: its text is stdout and stderr, so the scrubbed text can replace both. Fields that
+// could carry unscrubbed text another way (structured blocks, a path to the raw output, a
+// background task's file) make it a deny. Read, Grep, web and MCP results keep the deny: their
+// model-facing text is built by each tool's mapper, and a wrong rewrite could leak or mangle it.
+export function rewriteResult(tool: string, result: unknown, text: string, note: string): Rec | null {
+  if (!isRec(result)) return null
+  if (tool === 'Bash') {
+    if (typeof result.stdout !== 'string' || typeof result.stderr !== 'string') return null
+    if (result.isImage || result.structuredContent !== undefined || result.persistedOutputPath !== undefined
+      || result.rawOutputPath !== undefined || result.backgroundTaskId !== undefined) return null
+    return { ...result, stdout: `${text}\n${note}`, stderr: '' }
+  }
+  return null
 }
 
 export const register: Register = on => {
@@ -163,7 +194,7 @@ export const register: Register = on => {
       : 'Images and PDFs are BLOCKED ("/scrub images on" to allow).'
     return {
       text: isOn
-        ? `Philter scrubbing is ON. ${total} items redacted this session. ${images} Policy: ${policy ? `${policy.slice(SET_PREFIX.length)} (${policy})` : 'base (comprehensive)'}.${policyNote ? ` ${policyNote}.` : ''}`
+        ? `Philter scrubbing is ON. ${total} items redacted this session. ${images} Policy: ${policy ? `${policy.slice(SET_PREFIX.length)} (${policy})` : 'base (comprehensive)'}. Tool output: ${codePolicy ?? 'comprehensive'}.${policyNote ? ` ${policyNote}.` : ''}`
         : 'Philter scrubbing is OFF. Prompts, tool results and images go to the model unredacted.',
     }
   })
@@ -216,13 +247,19 @@ export const register: Register = on => {
     if (!raw || !raw.trim()) return ran
     let out: Scrubbed
     try {
-      out = await scrub($, raw)
+      out = await scrub($, raw, codePolicy)
     } catch {
-      return { deny: `Result withheld: ${why()}, so it could not be redacted.` }
+      return { deny: `Result withheld: ${why(codePolicy)}, so it could not be redacted.` }
     }
     if (out.count === 0) return ran
     showCount($, out.count)
-    return { deny: `[Philter redacted ${out.count} item${out.count === 1 ? '' : 's'}]\n${out.text}` }
+    const note = `[Philter redacted ${out.count} item${out.count === 1 ? '' : 's'}]`
+    // Hand back an ordinary result with placeholders where the shape allows it, so a single
+    // redaction doesn't read as an error ("a plugin withheld its result"). Anything else is
+    // withheld as before.
+    const rewritten = rewriteResult(e.tool, ran.result, out.text, note)
+    if (rewritten !== null) return { result: rewritten as never }
+    return { deny: `${note}\n${out.text}` }
   }).catch(($, e, next) =>
     next.called ? { deny: 'Result withheld: the Philter scrub hook failed.' } : next(e),
   )
