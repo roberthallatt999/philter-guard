@@ -19,9 +19,16 @@ for piece in sorted((ROOT / "library").glob("*.json")):
     patterns += json.loads(piece.read_text()).get("identifiers", [])
 
 
-def matches(classification: str, text: str) -> list[str]:
+# The code- variant used for tool output (sync-policy.sh): the same patterns minus the
+# overlay's dropped shape-only ones.
+OVERLAY = json.loads((ROOT / "policies" / "code-overlay.json").read_text())
+code_patterns = [p for p in patterns if p["pattern"] not in OVERLAY.get("dropIdentifierPatterns", [])] \
+    + OVERLAY.get("addIdentifiers", [])
+
+
+def matches(classification: str, text: str, rules=None) -> list[str]:
     found = []
-    for p in patterns:
+    for p in patterns if rules is None else rules:
         if p["classification"] != classification:
             continue
         flags = 0 if p.get("caseSensitive", True) else re.I
@@ -47,7 +54,6 @@ CASES = [
     ("health-card-number", "OHIP 1234-567-890-AB", "1234-567-890-AB"),
     ("health-card-number", "RAMQ TREM 7503 1412", "TREM 7503 1412"),
     ("health-card-number", "AHCIP 12345-6789", "12345-6789"),
-    ("health-card-number", "epoch 1731580937 in a log", None),
     # postal / ZIP
     ("postal-code", "Toronto ON M5V 3L9", "M5V 3L9"),
     ("postal-code", "h2x1y4", "h2x1y4"),
@@ -70,6 +76,21 @@ CASES = [
     ("phone-number-dotted", "Call +1.613.555.0199 now", "+1.613.555.0199"),
     ("phone-number-dotted", "version 1.555.0199.2", None),
     ("phone-number-dotted", "host 192.168.100.1", None),
+]
+
+# Tool output (the code- policy). A bare ten-digit health-card number has the shape of a Unix
+# epoch, so the prose policy still catches it in what people type; the code policy, which
+# drops the unlabelled shape, must not redact a log's epoch. The labelled form stays caught.
+CODE_CASES = [
+    ("health-card-number", "epoch 1731580937 in a log", None),
+    # Labelled forms stay caught (OHIP: the number; its two-letter version code is not personal).
+    ("health-card-number", "OHIP 1234-567-890-AB", "1234-567-890"),
+    ("health-card-number", "RAMQ TREM 7503 1412", "TREM 7503 1412"),
+    ("health-card-number", "build TREM 7503 1412 done", None),
+    ("bank-account", "transit 12345-003-1234567", "12345-003-1234567"),
+    ("bank-account", "chunk 12345-003 of the upload", None),
+    ("passport-number", "request_id=1731580937 build 15558508 trace AB123456", None),
+    ("passport-number", "Passport No. 123456789", "123456789"),
 ]
 
 # Per-piece cases: tests/cases/<piece>.py (hyphens become underscores) exports CASES, the
@@ -107,6 +128,11 @@ for i, (source, (cls, text, want)) in enumerate(ALL):
             print(f"FAIL {cls}: {text!r} -> {got!r} (wanted {want!r})")
         else:
             print(f"FAIL [{source}] {cls} case {i}: {'must not match' if want is None else 'must catch'}")
-CASES = [c for _, c in ALL]
+for cls, text, want in CODE_CASES:
+    got = matches(cls, text, code_patterns)
+    if not (not got if want is None else caught(want, got)):
+        failed += 1
+        print(f"FAIL [code policy] {cls}: {text!r} -> {got!r} (wanted {want!r})")
+CASES = [c for _, c in ALL] + CODE_CASES
 print(f"{len(CASES) - failed}/{len(CASES)} passed")
 sys.exit(1 if failed else 0)

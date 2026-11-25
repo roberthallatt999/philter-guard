@@ -1,5 +1,5 @@
 {
-  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-, and each rule's placeholder names its classification. Labels cover password, passwd, secret, secret_key, token, api_key, access_key, client_secret, private_key, security_key, app_key, db_pass and an underscore-suffixed pwd (a value starting with a slash is never taken as one). A PHP define() call whose name ends in PASSWORD, KEY, SALT or SECRET is caught on its own rule. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py. Known gaps: a YAML-style line (colon separator) with an unquoted letters-only value is not caught; an unquoted value is caught only up to its first space, quote, & ; or , ; a URL password that starts with 1-5 digits and then ? or #, or has a further / ? # = or & between that digit prefix and the @, is read as host:port and not caught.",
+  "_about": "API keys and tokens. Merged into every policy, including the base. Secret classifications start with secret-, and each rule's placeholder names its classification. Labels cover password, passwd, secret, secret_key, token, api_key, access_key, client_secret, private_key, security_key, app_key, db_pass and an underscore-suffixed pwd (a value starting with a slash is never taken as one). A PHP define() call whose name ends in PASSWORD, KEY, SALT or SECRET is caught on its own rule. There is deliberately no generic high-entropy rule: git SHAs, UUIDs and lockfile integrity hashes must pass through. Cases live in tests/cases/api_keys.py. Labelled values (secret-labelled-value) must contain a digit or one of ! # % ^ * + ~ (a KEY= value may instead be 12+ letters with a case change), must not start like a path, expansion or template (/ ~ ./ ? : - $ % { < @ *), and must not contain a placeholder word; a quoted value must reach its closing quote or the end of the line. JWTs need both header and payload to start with eyJ. Known gaps: a YAML-style line (colon separator) with an unquoted letters-only value is not caught; a KEY= value of letters only without a case change is not caught; an unquoted value is caught only up to its first space, quote, & ; or , ; a URL password that starts with 1-5 digits and then ? or #, or has a further / ? # = or & between that digit prefix and the @, is read as host:port and not caught.",
   "identifiers": [
     {
       "classification": "secret-aws-access-key",
@@ -102,7 +102,7 @@
     },
     {
       "classification": "secret-jwt",
-      "pattern": "\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}",
+      "pattern": "\\beyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}",
       "caseSensitive": true,
       "identifierFilterStrategies": [
         {
@@ -148,7 +148,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*=[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]+(?:\\.[A-Za-z_]+)+(?:[;,)\\](\\[]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*=[ \\t]*(?![\\\"'])(?![/~?:\\-$%{<@*\\\\]|\\.{1,2}/)(?!(?:string|number|boolean|null|none|true|false|undefined|required|optional)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]+(?:\\.[A-Za-z_]+)+(?:[;,)\\](\\[]|\\s|$))(?![^\\s\\\"']*(?:placeholder|example|changeme|change[_-]me|dummy|redacted|your[_-]|xxxx|<[a-z_-]+>))(?:(?=[^\\s\\\"'&;,)\\]]*[\\d!#%^*+~])|(?=[A-Za-z]{12})(?=[^\\s\\\"'&;,)\\]]*(?-i:[a-z][A-Z])))([^\\s\\\"'<>{$(\\[&;,)\\]]{8,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -160,7 +160,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*:[ \\t]*(?![\\\"'])(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)(?![A-Za-z_][A-Za-z_.]*(?:[(\\[,;)\\]]|\\s|$))([^\\s\\\"'<>{$(\\[&;,)\\]]{6,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*:[ \\t]*(?![\\\"'])(?![/~?:\\-$%{<@*\\\\]|\\.{1,2}/)(?!(?:string|number|boolean|null|none|true|false|undefined|required|optional)\\b)(?![A-Za-z_]\\w*[(\\[])(?![A-Za-z_]+(?:\\.[A-Za-z_]+)+(?:[;,)\\](\\[]|\\s|$))(?![^\\s\\\"']*(?:placeholder|example|changeme|change[_-]me|dummy|redacted|your[_-]|xxxx|<[a-z_-]+>))(?:(?=[^\\s\\\"'&;,)\\]]*[\\d!#%^*+~]))([^\\s\\\"'<>{$(\\[&;,)\\]]{8,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -172,7 +172,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*[:=][ \\t]*\\\"(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^\\\"\\s<>{$][^\\\"\\r\\n<>{$]{5,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?\\]?[ \\t]*[:=>]{1,2}[ \\t]*\"(?![/~?:\\-$%{<@*\\\\]|\\.{1,2}/)(?!(?:string|number|boolean|null|none|true|false|undefined)\")(?![^\"\\r\\n]*(?:placeholder|example|changeme|change[_-]me|dummy|redacted|your[_-]|xxxx|<[a-z_-]+>))(?:(?=[^\"\\r\\n]*[\\d!#%^*+~])|(?=[^\"\\s]{12,}(?:\"|$))|(?=[^\"\\r\\n]*(?-i:[a-z][A-Z])))([^\"\\s<>{$][^\"\\r\\n<>{$]{5,})(?=\"|\\r?\\n|$)",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -184,7 +184,7 @@
     },
     {
       "classification": "secret-labelled-value",
-      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?[ \\t]*[:=][ \\t]*'(?!(?:string|number|boolean|null|none|true|false|undefined)\\b)([^'\\s<>{$][^'\\r\\n<>{$]{5,})",
+      "pattern": "(?:password|passwd|(?<=_)pwd(?![\\\"']?[ \\t]*[:=][ \\t]*[\\\"']?/)|secret|secret[_-]?key|token|api[_-]?key|access[_-]?key|client[_-]secret|private[_-]key|security[_-]?key|(?<![A-Za-z])app[_-]?key|(?:db|database)[_-]?pass)[\\\"']?\\]?[ \\t]*[:=>]{1,2}[ \\t]*'(?![/~?:\\-$%{<@*\\\\]|\\.{1,2}/)(?!(?:string|number|boolean|null|none|true|false|undefined)')(?![^'\\r\\n]*(?:placeholder|example|changeme|change[_-]me|dummy|redacted|your[_-]|xxxx|<[a-z_-]+>))(?:(?=[^'\\r\\n]*[\\d!#%^*+~])|(?=[^'\\s]{12,}(?:'|$))|(?=[^'\\r\\n]*(?-i:[a-z][A-Z])))([^'\\s<>{$][^'\\r\\n<>{$]{5,})(?='|\\r?\\n|$)",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [
@@ -487,7 +487,7 @@
     },
     {
       "classification": "secret-npm-auth",
-      "pattern": "(?i)(?:_authToken|_auth|_password)\\s*=\\s*([^\\s$\\\"'][^\\s\\\"']{7,})",
+      "pattern": "(?<![A-Za-z0-9])(?:_authToken|_auth|_password)\\s*=\\s*(?![\\\"'$])(?![^\\s]*(?:placeholder|example|changeme|change[_-]me|dummy|redacted|your[_-]|xxxx|<[a-z_-]+>))([^\\s\\\"'][^\\s\\\"']{7,})",
       "caseSensitive": false,
       "groupNumber": 1,
       "identifierFilterStrategies": [

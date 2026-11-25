@@ -1,0 +1,45 @@
+{
+  "_about": "Turns each built policy X into code-X, used for tool output (command output, data files, search results). Shape-only filters with no label are dropped there: in command output they match hashes, UUIDs and build ids. Prompts keep X. See docs/proposals/2026-11-23-low-fp-detection.md. addIdentifiers puts back, with a label, the two shapes whose bare form is dropped and that the base has no labelled rule for: a RAMQ number (letters first) and a bank transit/account number.",
+  "disableBuiltins": [
+    "trackingNumber",
+    "driversLicense",
+    "vin",
+    "age",
+    "hospital"
+  ],
+  "dropIdentifierPatterns": [
+    "\\b[A-Z]{2}\\d{6}\\b",
+    "\\b[A-Z]\\d{8}\\b",
+    "\\b(?:\\d{4}[- ]\\d{3}[- ]\\d{3}(?:[- ]?[A-Za-z]{2})?|\\d{10}[- ]?[A-Za-z]{2})\\b",
+    "\\b[A-Z]{4}[ ]?\\d{4}[ ]?\\d{4}\\b",
+    "\\b[A-Z]\\d{4}[- ]?\\d{5}[- ]?\\d{5}\\b",
+    "\\b\\d{5}[- ]\\d{3}(?:[- ]\\d{5,12})?\\b"
+  ],
+  "personThreshold": 0.92,
+  "addIdentifiers": [
+    {
+      "classification": "health-card-number",
+      "pattern": "(?i)\\b(?:RAMQ|health\\s*card|carte\\s+soleil)\\b\\s*(?:no\\.?|number|num|#)?\\s*[:#]?\\s*((?-i:[A-Z]{4})[ ]?\\d{4}[ ]?\\d{4})\\b",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-health-card-number}}}"
+        }
+      ]
+    },
+    {
+      "classification": "bank-account",
+      "pattern": "(?i)\\b(?:transit|account|acct|bank(?:\\s+account)?|compte)\\b\\s*(?:no\\.?|number|num|#)?\\s*[:#]?\\s*(\\d{5}[- ]\\d{3}(?:[- ]\\d{5,12})?)\\b",
+      "caseSensitive": false,
+      "groupNumber": 1,
+      "identifierFilterStrategies": [
+        {
+          "strategy": "REDACT",
+          "redactionFormat": "{{{REDACTED-bank-account}}}"
+        }
+      ]
+    }
+  ]
+}

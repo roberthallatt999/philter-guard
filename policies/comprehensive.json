@@ -8,7 +8,7 @@
   ],
   "ignoredPatterns": [
     { "name": "file-paths",      "pattern": "(?:~|\\.{1,2})?(?:/[\\w.@+-]+){2,}/?" },
-    { "name": "version-numbers", "pattern": "\\bv?(?!(?:1\\.)?\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?!\\w|\\.\\w))\\d+\\.\\d+\\.\\d+(?:[-+.][\\w.]+)?\\b" },
+    { "name": "version-numbers", "pattern": "\\bv?(?!(?:\\d{1,3}\\.){3}\\d{1,3}\\b)(?!(?:1\\.)?\\(?\\d{3}\\)?\\.\\d{3}\\.\\d{4}(?!\\w|\\.\\w))\\d+\\.\\d+\\.\\d+(?:[-+.][\\w.]+)?\\b" },
     { "name": "log-timestamps",  "pattern": "\\b\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}(?::\\d{2}(?:[.,]\\d+)?)?(?:Z|[+-]\\d{2}:?\\d{2})?\\b" },
     { "name": "http-cache-age",  "pattern": "(?i)^(?:age:[ \\t]*|age=)(?:\\d{4,}|[2-9]\\d{2}|1[5-9]\\d)$" }
   ],
@@ -17,8 +17,14 @@
       "phEyeConfiguration": {
         "modelPath": "ph-eye-pii-en-small",
         "labels": ["name"],
-        "threshold": 0.8
+        "threshold": 0.9
       },
+      "ignored": ["Philter", "Husky", "Squid", "Astro", "Vite", "Vitest", "Jest", "Nuxt", "Remix", "Svelte", "SvelteKit", "Sanity", "Strapi", "Tina", "Prisma", "Pinia", "Zod", "Bun", "Deno", "Hugo", "Jekyll", "Gatsby", "Docusaurus", "Playwright", "Cypress", "Puppeteer", "Caddy", "Traefik", "Nginx", "Redis", "Postgres", "Homebrew", "Ansible", "Terraform", "Vagrant", "Jenkins", "Sentry", "Grafana", "Kibana", "Wrangler", "Forge", "Herd", "Craft", "Twig", "Blade", "Alpine", "Tailwind", "Laravel", "Symfony", "Coilpack", "Bedrock", "Sage", "Composer", "Gitleaks", "TruffleHog", "Presidio", "Phileas", "OrbStack", "Lando", "Mailpit", "Xdebug"],
+      "ignoredPatterns": [
+        {"name": "person-0", "pattern": "[a-z][a-z0-9._-]*"},
+        {"name": "person-1", "pattern": "\\S{1,64}[ \\t]{1,16}(?:staff|wheel|admin|root|users|everyone|docker|www-data|_www|nogroup)"},
+        {"name": "person-2", "pattern": "(?i)(?:the\\s+)?(?:Philter|Husky|Squid|Astro|Vite|Vitest|Jest|Nuxt|Remix|Svelte|SvelteKit|Sanity|Strapi|Tina|Prisma|Pinia|Zod|Bun|Deno|Hugo|Jekyll|Gatsby|Docusaurus|Playwright|Cypress|Puppeteer|Caddy|Traefik|Nginx|Redis|Postgres|Homebrew|Ansible|Terraform|Vagrant|Jenkins|Sentry|Grafana|Kibana|Wrangler|Forge|Herd|Craft|Twig|Blade|Alpine|Tailwind|Laravel|Symfony|Coilpack|Bedrock|Sage|Composer|Gitleaks|TruffleHog|Presidio|Phileas|OrbStack|Lando|Mailpit|Xdebug)(?:\\s+(?:site|app|config|proxy|hook|hooks|project|build|server|cli|docs|plugin|policy|set|container|image|cache|run|logs?))?"}
+      ],
       "phEyeFilterStrategies": [{ "strategy": "REDACT" }]
     },
     "age":                  { "ageFilterStrategies":                  [{ "strategy": "REDACT" }] },
@@ -28,18 +34,31 @@
     "ein":                  { "einFilterStrategies":                  [{ "strategy": "REDACT" }] },
     "driversLicense":       { "driversLicenseFilterStrategies":       [{ "condition": "confidence > 0.6", "strategy": "REDACT" }] },
     "emailAddress":         { "emailAddressFilterStrategies":         [{ "strategy": "REDACT" }] },
-    "phoneNumber":          { "phoneNumberFilterStrategies":          [{ "strategy": "REDACT" }] },
+    "phoneNumber":          { "region": ["CA", "US"], "phoneNumberFilterStrategies": [{"condition": "confidence > 0.9", "strategy": "REDACT"}] },
     "phoneNumberExtension": { "phoneNumberExtensionFilterStrategies": [{ "strategy": "REDACT" }] },
     "streetAddress":        { "streetAddressFilterStrategies":        [{ "strategy": "REDACT" }] },
     "hospital":             { "hospitalFilterStrategies":             [{ "strategy": "REDACT" }] },
     "creditCard": {
-      "onlyValidCreditCardNumbers": false,
+      "onlyValidCreditCardNumbers": true,
       "creditCardFilterStrategies": [{ "strategy": "REDACT" }]
     },
     "bankRoutingNumber":    { "bankRoutingNumberFilterStrategies":    [{ "strategy": "REDACT" }] },
     "ibanCode":             { "ibanCodeFilterStrategies":             [{ "strategy": "REDACT" }] },
     "bitcoinAddress":       { "bitcoinAddressFilterStrategies":       [{ "strategy": "REDACT" }] },
-    "ipAddress":            { "ipAddressFilterStrategies":            [{ "strategy": "REDACT" }] },
+    "ipAddress": {
+      "ignoredPatterns": [
+        {"name": "ip-0", "pattern": "(?i)[0-9a-f]{0,4}(?:::[0-9a-f]{0,4})+(?:%[\\w.]+)?"},
+        {"name": "ip-1", "pattern": "(?:10|127)(?:\\.\\d{1,3}){3}"},
+        {"name": "ip-2", "pattern": "192\\.168(?:\\.\\d{1,3}){2}"},
+        {"name": "ip-3", "pattern": "172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2}"},
+        {"name": "ip-4", "pattern": "169\\.254(?:\\.\\d{1,3}){2}"},
+        {"name": "ip-5", "pattern": "100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])(?:\\.\\d{1,3}){2}"},
+        {"name": "ip-6", "pattern": "0\\.0\\.0\\.0|255\\.255\\.255\\.255"},
+        {"name": "ip-7", "pattern": "(?:192\\.0\\.2|198\\.51\\.100|203\\.0\\.113)\\.\\d{1,3}"},
+        {"name": "ip-8", "pattern": "(?i)(?:fe80|f[cd][0-9a-f]{2}|2001:0?db8)(?::[0-9a-f]{0,4})*(?:%[\\w.]+)?"}
+      ],
+      "ipAddressFilterStrategies": [{ "strategy": "REDACT" }]
+    },
     "macAddress":           { "macAddressFilterStrategies":           [{ "strategy": "REDACT" }] },
     "vin":                  { "vinFilterStrategies":                  [{ "strategy": "REDACT" }] },
     "trackingNumber":       { "trackingNumberFilterStrategies":       [{ "strategy": "REDACT" }] },

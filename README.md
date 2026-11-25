@@ -86,6 +86,10 @@ Run `/scrub` to check it's working.
 
 **If Philter is down:** your message isn't sent and tool output is withheld. Nothing gets through unredacted.
 
+**Tool output uses a code policy.** `sync-policy.sh` builds `code-<policy>` next to every policy (`code-comprehensive`, `code-set-acme`) from `policies/code-overlay.json`: the same rules without the shape-only filters (tracking numbers, bare passport, health-card, licence and bank-account shapes, age, hospital, VIN) that match hashes, UUIDs and build ids in command output, and with a stricter name threshold. The labelled forms (`OHIP …`, `Passport No. …`, `transit …`) are still caught. What you type keeps the full policy. If the code policy isn't on the server, the mod uses the full one.
+
+**A redacted command result is an ordinary result.** Bash output comes back with placeholders and a closing `[Philter redacted N items]` line, so Claude doesn't read it as an error. Other tools' redacted results (data files, search, web, MCP) are still withheld with the redacted text as the reason, because their text can't be rewritten safely.
+
 ## Choosing a policy per project
 
 Put a file named `.philter` in the project folder. Its first line (blank lines and `#` comments are skipped) names a set from `sets/` (a file `sets/acme.json` is the set `acme`; on the server it is the policy `set-acme`):
@@ -107,7 +111,7 @@ Every policy is the base, `library/api-keys.json`, and the pieces a set includes
 2. Turn it into rules in a piece: copy `library/_example.json.disabled` to `library/<piece>.json`. Add regex `identifiers` (with a `classification`) and word-list `dictionaries`. Remember that backslashes have to be doubled in JSON.
 3. Add tests for the new patterns in `tests/cases/<piece>.py` (hyphens in the piece name become underscores), exporting `CASES = [(classification, text, must_catch_or_None), ...]`. Build every fake value at runtime from parts so no file holds a credential-shaped literal. `python3 tests/test_patterns.py` runs them for every piece.
 4. Create the set: copy `sets/_example.json.disabled` to `sets/<client>.json` and list the piece names in `include`. Set names use lowercase letters, digits and hyphens. `comprehensive` is reserved.
-5. Run `./sync-policy.sh --dry-run` to validate and see the summary, then `./sync-policy.sh` to upload. Anything on the server that is not `comprehensive` or a current `set-<name>` (including old un-prefixed set policies) is reported as `Stale (not deleted)`.
+5. Run `./sync-policy.sh --dry-run` to validate and see the summary, then `./sync-policy.sh` to upload. Anything on the server that is not `comprehensive`, a current `set-<name>` or their `code-` variants (including old un-prefixed set policies) is reported as `Stale (not deleted)`.
 
 Run `bash tests/test_build.sh` to test the build itself. Commit the change so every computer gets it. On another computer, run `git pull && ./sync-policy.sh`.
 
