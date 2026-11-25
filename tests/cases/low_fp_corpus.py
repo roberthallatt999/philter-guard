@@ -83,6 +83,10 @@ SECRET_FP = [
 # and whether the proposed per-filter ignoredPatterns must ignore it. Full-match semantics.
 #   (filter, span text, must_ignore)
 SPAN_CASES = [
+    # streetAddress — a test log's "exits 0" + next line read as "0 Pass Dr…" (2026-11-24)
+    ("streetAddress", "0\n  PASS  dry run", True), ("streetAddress", "0 PASS dry run", True),
+    ("streetAddress", "42 Wallaby Way", False), ("streetAddress", "123 Main Street", False),
+    ("streetAddress", "100 Queen St W", False),
     # ipAddress — observed spans from Perl, PHP, GitHub workflow commands
     ("ipAddress", "::", True), ("ipAddress", "e::", True), ("ipAddress", "::add", True),
     ("ipAddress", "a::b", True), ("ipAddress", "::ba", True), ("ipAddress", "1::", True),

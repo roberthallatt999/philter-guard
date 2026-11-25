@@ -36,7 +36,13 @@
     "emailAddress":         { "emailAddressFilterStrategies":         [{ "strategy": "REDACT" }] },
     "phoneNumber":          { "region": ["CA", "US"], "phoneNumberFilterStrategies": [{"condition": "confidence > 0.9", "strategy": "REDACT"}] },
     "phoneNumberExtension": { "phoneNumberExtensionFilterStrategies": [{ "strategy": "REDACT" }] },
-    "streetAddress":        { "streetAddressFilterStrategies":        [{ "strategy": "REDACT" }] },
+    "streetAddress": {
+      "ignoredPatterns": [
+        {"name": "address-across-lines", "pattern": "(?s)[^\\r\\n]{0,100}[\\r\\n].{0,200}"},
+        {"name": "address-number-zero",  "pattern": "(?s)0{1,4}(?:[\\s,].{0,200})?"}
+      ],
+      "streetAddressFilterStrategies": [{ "strategy": "REDACT" }]
+    },
     "hospital":             { "hospitalFilterStrategies":             [{ "strategy": "REDACT" }] },
     "creditCard": {
       "onlyValidCreditCardNumbers": true,

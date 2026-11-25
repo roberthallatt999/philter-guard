@@ -39,7 +39,7 @@ if CURRENT:
     # Filter-level ignoredPatterns plus the policy-level ones (Phileas applies both to a span).
     policy_level = [p["pattern"] for p in base["ignoredPatterns"]]
     span_ignores = {f: [p["pattern"] for p in ids.get(f, {}).get("ignoredPatterns", [])] + policy_level
-                    for f in ("ipAddress", "person")}
+                    for f in ("ipAddress", "person", "streetAddress")}
     # Policy-level "ignored" holds {name, terms} groups; a filter's own is a plain list of terms.
     terms = {"person": {t.lower() for g in base.get("ignored", []) for t in g["terms"]}
              | {t.lower() for t in ids["person"].get("ignored", [])}}
@@ -86,6 +86,8 @@ for i, text in enumerate(C.SECRET_FP):
     check(not hits, f"secret FP line {i} matched {sorted({c for c, _ in hits})}")
 
 for i, (flt, span, must_ignore) in enumerate(C.SPAN_CASES):
+    if flt not in span_ignores:  # filter not covered by this rule set (--proposed predates it)
+        continue
     ignored = span.lower() in terms.get(flt, set()) or any(
         re.fullmatch(p, span) for p in span_ignores[flt])
     # spans are not secrets, so they may be printed
