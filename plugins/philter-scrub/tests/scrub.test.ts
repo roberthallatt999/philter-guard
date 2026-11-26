@@ -381,3 +381,80 @@ test('a missing code- variant falls back to the prose policy', async ($, on) => 
   await $.tool.call({ tool: 'Bash', command: 'cat x' })
   expect(redactArgs(w.calls).policy).toBe('set-acme')
 })
+
+// ---- random IDs (Claude Docs ids, UUIDs, artifact links) ----
+
+// A stand-in for Philter's phone filter: any 10 digits, optionally split 6-4, become a phone number.
+const fakePhilter = (sent: string[]) => (_: unknown, e: { args: { text: string } }) => {
+  sent.push(e.args.text)
+  let n = 0
+  const filtered = e.args.text.replace(/\d{6}-?\d{4}/g, () => {
+    n++
+    return '{{{REDACTED-phone-number}}}'
+  })
+  return philterSays(filtered, n)
+}
+
+// Fake ids built from parts so the digit runs are plain to see.
+const NODE_ID = 'ce' + '613555' + '-' + '0199'
+const UUID = '5de14f7f-607e-4a14-b3c2-' + '613555019912'
+const LINK_ID = 'Rp9naXUCj2' + '6135550199' + 'Ky'
+const LINK = 'https://claude.ai/artifact/workspace-playbook-' + LINK_ID
+
+test('Claude Docs ids reach the model intact while a real phone number is still redacted', async ($, on) => {
+  const sent: string[] = []
+  on('mcp.call', fakePhilter(sent))
+  on('ui.status', () => ({ value: undefined }))
+  on('tool.call', () => ({
+    result: {},
+    text: `project "${UUID}", root node "${NODE_ID}", link ${LINK}. Call 613555-0123.`,
+  }))
+
+  const res = await $.tool.call({ tool: 'mcp__claude_ai_Claude_Docs__batch' })
+  expect(sent[0]).not.toContain(NODE_ID)
+  expect(sent[0]).not.toContain(UUID)
+  expect(sent[0]).not.toContain(LINK_ID)
+  expect(res.deny).toBe(
+    `[Philter redacted 1 item]\nproject "${UUID}", root node "${NODE_ID}", link ${LINK}. Call {{{REDACTED-phone-number}}}.`,
+  )
+})
+
+test('an id with no letters is still sent to Philter as it is', async ($, on) => {
+  const sent: string[] = []
+  on('mcp.call', fakePhilter(sent))
+  on('ui.status', () => ({ value: undefined }))
+  const digitsOnly = '61355501' + '-' + '9912'
+  on('tool.call', () => ({ result: {}, text: `account ${digitsOnly}` }))
+
+  await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(sent[0]).toBe(`account ${digitsOnly}`)
+})
+
+test('text already holding the token marker is sent unchanged', async ($, on) => {
+  const sent: string[] = []
+  on('mcp.call', fakePhilter(sent))
+  on('ui.status', () => ({ value: undefined }))
+  const text = `KEEPIDAx is literal here, node ${NODE_ID}`
+  on('tool.call', () => ({ result: {}, text }))
+
+  const res = await $.tool.call({ tool: 'Bash', command: 'cat x' })
+  expect(sent[0]).toBe(text)
+  expect(res.deny).toBe('[Philter redacted 1 item]\nKEEPIDAx is literal here, node ce{{{REDACTED-phone-number}}}')
+})
+
+test('many ids in one prompt each come back to their own place', async ($, on) => {
+  const sent: string[] = []
+  on('mcp.call', fakePhilter(sent))
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.toast', () => ({ value: undefined }))
+  let seen = ''
+  on('prompt.submit', (_, e) => {
+    seen = e.text
+    return { text: e.text }
+  })
+  const ids = Array.from({ length: 30 }, (_, i) => `ab${String(i).padStart(6, '0')}-${String(i).padStart(4, '0')}`)
+  const text = ids.join(' ') + ' then 6135550123'
+
+  await $.prompt.submit({ text, wait: false, origin: { kind: 'composer' } })
+  expect(seen).toBe(ids.join(' ') + ' then {{{REDACTED-phone-number}}}')
+})

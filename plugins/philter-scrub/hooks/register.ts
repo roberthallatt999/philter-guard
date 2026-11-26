@@ -134,13 +134,59 @@ async function resolveProsePolicy($: EngineInterface, cwd: string, names: string
   policy = server
 }
 
-async function scrub($: EngineInterface, text: string, use: string | undefined = policy): Promise<Scrubbed> {
+// Random IDs (UUIDs, Claude Docs tab and node ids like "be1476b2-62c1", the id at the end of a
+// claude.ai artifact link) hold no personal data, but their digit runs look like phone, card and
+// tracking numbers to Philter: a Docs node id "ce" + 10 digits came back as a phone number, so the
+// doc couldn't be written to. A policy ignore rule can't fix this, because Philter checks it
+// against the matched span ("6135550199") alone, never the ID around it. So IDs are swapped for
+// letter-only tokens before Philter sees the text and put back after. A match with no letter is
+// left for Philter: an all-digit "ID" could be a real account or phone number.
+const RANDOM_ID = new RegExp(
+  [
+    String.raw`\b[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\b`,
+    String.raw`(?<=claude\.ai\/(?:code\/)?artifact\/(?:[\w-]*-)?)[A-Za-z0-9]{22}\b`,
+  ].join('|'),
+  'gi',
+)
+const TOKEN_MARK = 'KEEPID'
+const TOKEN = /KEEPID([A-Z]+)x/g
+
+// 0 → "A", 25 → "Z", 26 → "BA": letters only, so no Philter filter reads it as a number.
+const toLetters = (n: number): string => (n < 26 ? '' : toLetters(Math.floor(n / 26))) + String.fromCharCode(65 + (n % 26))
+const fromLetters = (s: string): number => [...s].reduce((n, c) => n * 26 + c.charCodeAt(0) - 65, 0)
+
+/**
+ * Swaps random IDs in text for placeholder tokens.
+ * @param text the text about to be scrubbed
+ * @returns the text with tokens, and the IDs in token order. Text that already holds the token
+ *   marker is returned unchanged, so a restore can never put an ID where none was.
+ * @example protectIds('node "be1476b2-62c1"') // { text: 'node "KEEPIDAx"', ids: ['be1476b2-62c1'] }
+ */
+export function protectIds(text: string): { text: string; ids: string[] } {
+  const ids: string[] = []
+  if (text.includes(TOKEN_MARK)) return { text, ids }
+  const swapped = text.replace(RANDOM_ID, id => {
+    if (!/[a-z]/i.test(id)) return id
+    ids.push(id)
+    return `${TOKEN_MARK}${toLetters(ids.length - 1)}x`
+  })
+  return { text: swapped, ids }
+}
+
+/** Puts back the IDs protectIds took out. A token Philter changed stays changed. */
+export function restoreIds(text: string, ids: string[]): string {
+  if (ids.length === 0) return text
+  return text.replace(TOKEN, (token, letters: string) => ids[fromLetters(letters)] ?? token)
+}
+
+async function scrub($: EngineInterface, original: string, use: string | undefined = policy): Promise<Scrubbed> {
+  const { text, ids } = protectIds(original)
   const res = await $.mcp.call(SERVER, 'redact_text', use ? { text, policy: use } : { text })
   const block = res.content.find((b: { type: string }) => b.type === 'text') as { text?: string } | undefined
   if (res.isError || !block?.text) throw new Error('Philter returned no result')
   const body = JSON.parse(block.text) as { filtered_text?: string; redaction_count?: number; error?: string }
   if (body.error || typeof body.filtered_text !== 'string') throw new Error(body.error ?? 'Philter returned no text')
-  return { text: body.filtered_text, count: body.redaction_count ?? 0 }
+  return { text: restoreIds(body.filtered_text, ids), count: body.redaction_count ?? 0 }
 }
 
 function showCount($: EngineInterface, added: number) {

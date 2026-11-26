@@ -81,6 +81,7 @@ Run `/scrub` to check it's working.
 **What isn't scrubbed:**
 - Source code reads
 - Claude's own edit confirmations
+- Random IDs: UUIDs, Claude Docs ids such as `be1476b2-62c1`, and the id at the end of a claude.ai artifact link. Their digit runs look like phone, card and tracking numbers, so the mod hides them from Philter and puts them back afterwards. An ID made only of digits is still sent to Philter
 
 **Screenshots:** Philter can't redact images. Pasting one opens a question: **Send it**, **Don't send** or **Allow for this session**. Images from tools are withheld until you run `/scrub images on`.
 
